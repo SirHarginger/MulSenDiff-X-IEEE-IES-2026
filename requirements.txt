@@ -1,0 +1,7 @@
+pillow
+numpy
+pandas
+matplotlib
+seaborn
+trimesh
+jupyter
