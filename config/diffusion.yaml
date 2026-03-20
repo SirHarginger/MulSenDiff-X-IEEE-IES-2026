@@ -1,0 +1,37 @@
+data:
+  descriptor_index: data/processed/manifests/descriptor_index.csv
+  train_manifest: data/splits/train_manifest.csv
+  eval_manifest: data/splits/eval_manifest.csv
+  global_stats: data/processed/manifests/global_feature_stats.json
+  image_size: 256
+
+conditioning:
+  descriptor_channels: 13
+  global_vector_dim: 21
+  global_embedding_dim: 64
+  time_embedding_dim: 64
+
+model:
+  base_channels: 32
+  diffusion_steps: 1000
+  beta_start: 0.0001
+  beta_end: 0.02
+
+training:
+  epochs: 5
+  batch_size: 2
+  learning_rate: 0.0001
+  device: cpu
+  output_root: runs
+
+smoke:
+  category: capsule
+  batch_size: 2
+  max_batches: 3
+
+inference:
+  score_mode: noise_error
+  anomaly_timestep: 200
+  descriptor_weight: 0.25
+  pixel_threshold_percentile: 0.9
+  object_mask_threshold: 0.02

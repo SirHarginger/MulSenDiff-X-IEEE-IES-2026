@@ -201,6 +201,15 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Project-generated assets
+runs/
+data/raw/
+data/processed/
+data/cache/
+data/splits/*.csv
+data/splits/*.json
+!data/splits/README.md
+
 # Marimo
 marimo/_static/
 marimo/_lsp/

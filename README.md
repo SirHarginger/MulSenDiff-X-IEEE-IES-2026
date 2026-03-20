@@ -36,25 +36,85 @@ Observed aggregate counts from the extracted dataset:
 
 ## Current Repo Status
 
-The repository now has the expected top-level structure for:
+The repo is no longer just scaffolding. It now contains:
 
-- dataset documentation
-- architecture notes
-- descriptor design
-- explanation design
-- experiment planning
-- split management
+- dataset indexing and descriptor preprocessing
+- a trainable descriptor-conditioned diffusion baseline
+- evaluation and anomaly scoring
+- evidence packaging for explanation
+- a checkpoint-driven Streamlit interface
 
-Most Python modules are still scaffolding, so the next implementation focus should be the data manifest, loaders, preprocessing, and a first trainable baseline.
+## Repo Layout
 
-## Recommended Build Order
+- `src/`: core pipeline code
+- `app/`: user-facing interface
+- `scripts/`: CLI entrypoints for preprocessing, training, and evaluation
+- `config/`: live runtime config
+- `docs/`: project and design notes
+- `tests/`: runtime verification
 
-1. Build a dataset index that aligns RGB, infrared, point cloud, split, defect label, and GT paths.
-2. Implement modality loaders and preprocessing.
-3. Generate descriptor maps and global descriptor vectors from infrared and point clouds.
-4. Train a per-category conditional RGB diffusion baseline.
-5. Add anomaly scoring and localisation.
-6. Add evidence packaging and explanation generation.
+Generated artifacts live outside the source tree:
+
+- `data/raw/`
+- `data/processed/`
+- `data/cache/`
+- `data/splits/*.csv`
+- `runs/`
+
+These paths are ignored in `.gitignore` so the repository stays focused on source code and documentation.
+
+## Main Entry Points
+
+Pipeline:
+
+- `scripts/run_data_pipeline.py`
+- `scripts/run_training.py`
+- `scripts/run_evaluation.py`
+- `scripts/run_app.py`
+
+Interface:
+
+- `python scripts/run_app.py`
+
+## What To Run Chronologically
+
+From the repo root with the project venv active, run the project in this order.
+
+### 1. Build data artifacts
+
+This step builds the dataset index, descriptor pipeline outputs, validation reports, audits, and model manifests.
+
+```bash
+python scripts/run_data_pipeline.py
+```
+
+### 2. Train one category
+
+Start with one category such as `capsule` while iterating on the model.
+
+```bash
+python scripts/run_training.py --category capsule --epochs 20 --batch-size 4 --image-size 256 --device cpu --run-name capsule_clean
+```
+
+### 3. Evaluate the trained checkpoint
+
+Use the `best.pt` checkpoint from the training run you just created.
+
+```bash
+python scripts/run_evaluation.py --checkpoint runs/<run>/checkpoints/best.pt --category capsule --batch-size 4 --image-size 256 --device cpu --run-name capsule_eval
+```
+
+### 4. Launch the app
+
+The app loads trained checkpoints and runs live inference from the model.
+
+```bash
+python scripts/run_app.py
+```
+
+### 5. Scale up after the first category works
+
+When the pipeline looks good on `capsule`, repeat training and evaluation for other categories.
 
 ## Hardware Note
 
@@ -67,12 +127,9 @@ Until that is completed, assume:
 - conservative training settings
 - optional later migration to a stronger GPU machine for full experiments
 
-## Documentation Map
+## Keep In Mind
 
-- `docs/01_dataset.md`: dataset structure, counts, and usage rules
-- `docs/02_architecture.md`: end-to-end model design
-- `docs/03_descriptors.md`: infrared and point-cloud descriptor plan
-- `docs/04_explainer.md`: evidence-grounded explanation pipeline
-- `docs/literature_review.md`: implementation-oriented review framing
-- `data/splits/README.md`: split and manifest conventions
-- `src/experiments/README.md`: experiment roadmap
+- `data/` and `runs/` are working directories, not source code
+- the main workflow is `run_data_pipeline -> run_training -> run_evaluation -> run_app`
+- the app is checkpoint-driven and runs inference from trained models
+- the detailed design notes live in `docs/01_dataset.md` through `docs/04_explainer.md`

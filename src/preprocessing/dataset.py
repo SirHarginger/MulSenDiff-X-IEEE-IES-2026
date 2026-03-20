@@ -201,6 +201,8 @@ def _collect_test_records(category_path: Path) -> Tuple[List[SampleRecord], List
     records: List[SampleRecord] = []
 
     rgb_test_root = category_path / "RGB" / "test"
+    if not rgb_test_root.exists():
+        return records, issues
     defect_labels = sorted([path.name for path in rgb_test_root.iterdir() if path.is_dir()])
 
     for defect_label in defect_labels:
