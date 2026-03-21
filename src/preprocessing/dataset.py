@@ -16,11 +16,8 @@ MODALITY_SPECS = {
 DEFAULT_PROCESSED_DIRS = (
     "manifests",
     "manifests/per_category",
-    "descriptors/infrared",
-    "descriptors/pointcloud",
-    "descriptors/crossmodal",
-    "projections/pointcloud_to_rgb",
-    "tensors",
+    "category_stats",
+    "samples",
     "reports",
 )
 
