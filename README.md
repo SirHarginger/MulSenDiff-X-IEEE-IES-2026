@@ -38,7 +38,8 @@ Observed aggregate counts from the extracted dataset:
 
 The repo is no longer just scaffolding. It now contains:
 
-- dataset indexing and descriptor preprocessing
+- dataset indexing and sample-centric preprocessing
+- per-category residual baseline statistics
 - a trainable descriptor-conditioned diffusion baseline
 - evaluation and anomaly scoring
 - evidence packaging for explanation
@@ -57,7 +58,8 @@ Generated artifacts live outside the source tree:
 
 - `data/raw/`
 - `data/processed/`
-- `data/cache/`
+- `data/processed/category_stats/`
+- `data/processed/samples/`
 - `data/splits/*.csv`
 - `runs/`
 
@@ -82,11 +84,18 @@ From the repo root with the project venv active, run the project in this order.
 
 ### 1. Build data artifacts
 
-This step builds the dataset index, descriptor pipeline outputs, validation reports, audits, and model manifests.
+This step builds the dataset index, per-category baseline statistics, sample-centric processed folders, validation reports, audits, and training/evaluation manifests.
 
 ```bash
 python scripts/run_data_pipeline.py
 ```
+
+Key outputs after this step:
+
+- `data/processed/category_stats/<category>/`
+- `data/processed/samples/<category>__<split>__<defect>__<index>/`
+- `data/splits/train_manifest.csv`
+- `data/splits/eval_manifest.csv`
 
 ### 2. Train one category
 
@@ -132,4 +141,6 @@ Until that is completed, assume:
 - `data/` and `runs/` are working directories, not source code
 - the main workflow is `run_data_pipeline -> run_training -> run_evaluation -> run_app`
 - the app is checkpoint-driven and runs inference from trained models
+- the runtime data contract is sample-centric: one processed sample folder contains RGB, descriptor maps, metadata, and optional GT mask
+- the training-facing descriptor package is `7` spatial maps plus a `10`-dimensional global vector
 - the detailed design notes live in `docs/01_dataset.md` through `docs/04_explainer.md`
