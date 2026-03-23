@@ -3,6 +3,8 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 
+from src.data_loader import SUPPORT_DESCRIPTOR_ORDER
+
 
 def normalize_anomaly_map(anomaly_map: torch.Tensor) -> torch.Tensor:
     minimum = anomaly_map.amin(dim=(2, 3), keepdim=True)
@@ -15,13 +17,44 @@ def estimate_object_mask(
     *,
     threshold: float = 0.02,
     dilation_kernel_size: int = 9,
+    support_maps: torch.Tensor | None = None,
+    support_threshold: float = 0.05,
+    min_mask_pixels: int = 16,
 ) -> torch.Tensor:
     brightness = x_rgb.mean(dim=1, keepdim=True)
-    mask = (brightness > threshold).float()
+    rgb_mask = (brightness > threshold).float()
+    mask = rgb_mask
+    if support_maps is not None and support_maps.shape[1] >= len(SUPPORT_DESCRIPTOR_ORDER):
+        density_index = SUPPORT_DESCRIPTOR_ORDER.index("pc_density")
+        density_mask = (support_maps[:, density_index : density_index + 1, :, :] > support_threshold).float()
+        rgb_pixels = rgb_mask.sum(dim=(1, 2, 3), keepdim=True)
+        density_pixels = density_mask.sum(dim=(1, 2, 3), keepdim=True)
+        use_density = rgb_pixels < float(min_mask_pixels)
+        mask = torch.where(use_density, density_mask, rgb_mask)
+        mask = torch.where((mask.sum(dim=(1, 2, 3), keepdim=True) < float(min_mask_pixels)), rgb_mask + density_mask, mask)
     if dilation_kernel_size > 1:
         padding = dilation_kernel_size // 2
         mask = F.max_pool2d(mask, kernel_size=dilation_kernel_size, stride=1, padding=padding)
     return (mask > 0).float()
+
+
+def gaussian_smooth_map(anomaly_map: torch.Tensor, *, sigma: float = 3.0) -> torch.Tensor:
+    if sigma <= 0.0:
+        return anomaly_map
+    radius = max(int(round(3.0 * sigma)), 1)
+    kernel_size = radius * 2 + 1
+    coords = torch.arange(kernel_size, dtype=anomaly_map.dtype, device=anomaly_map.device) - radius
+    kernel_1d = torch.exp(-(coords**2) / (2.0 * sigma * sigma))
+    kernel_1d = kernel_1d / kernel_1d.sum().clamp_min(1e-6)
+    kernel_2d = torch.outer(kernel_1d, kernel_1d)
+    kernel_2d = kernel_2d / kernel_2d.sum().clamp_min(1e-6)
+    kernel = kernel_2d.view(1, 1, kernel_size, kernel_size).expand(anomaly_map.shape[1], 1, kernel_size, kernel_size)
+    return F.conv2d(
+        anomaly_map,
+        kernel,
+        padding=radius,
+        groups=anomaly_map.shape[1],
+    )
 
 
 def threshold_anomaly_map(
