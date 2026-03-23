@@ -5,16 +5,14 @@ import argparse
 import sys
 from pathlib import Path
 
-import yaml
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.training.train_diffusion import evaluate_checkpoint
-
 
 def load_config(path: str) -> dict:
+    import yaml
+
     payload = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     return payload if isinstance(payload, dict) else {}
 
@@ -23,18 +21,34 @@ def parse_csv_floats(value: str) -> list[float]:
     return [float(item.strip()) for item in value.split(",") if item.strip()]
 
 
+def parse_categories_arg(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
 def coerce_bool_arg(value: str, fallback: bool) -> bool:
     if not value:
         return fallback
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Evaluate a MulSenDiff-X checkpoint and save metrics/plots.")
+def build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Evaluate a MulSenDiff-X checkpoint in baseline per-category mode "
+            "or shared joint mode."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  python scripts/run_evaluation.py --checkpoint runs/<run>/checkpoints/best.pt --category capsule\n"
+            "  python scripts/run_evaluation.py --checkpoint runs/<run>/checkpoints/best.pt --categories all"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--config", default="config/diffusion.yaml")
     parser.add_argument("--data-root", default="data")
-    parser.add_argument("--category", default="")
+    parser.add_argument("--category", default="", help="Baseline mode: evaluate one category.")
+    parser.add_argument("--categories", default="", help="Shared mode: evaluate a joint checkpoint.")
     parser.add_argument("--batch-size", type=int, default=0)
     parser.add_argument("--image-size", type=int, default=0)
     parser.add_argument("--device", default="")
@@ -60,21 +74,32 @@ def main() -> None:
     parser.add_argument("--run-name", default="")
     parser.add_argument("--max-eval-batches", type=int, default=0)
     parser.add_argument("--max-visualizations", type=int, default=10)
+    parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--knowledge-base-root", default="")
     parser.add_argument("--retrieval-top-k", type=int, default=0)
     parser.add_argument("--disable-llm-explanations", action="store_true")
+    return parser
+
+
+def main() -> None:
+    parser = build_arg_parser()
     args = parser.parse_args()
+
+    from src.training.train_diffusion import evaluate_checkpoint
 
     config = load_config(args.config)
     smoke_cfg = config.get("smoke", {})
     training_cfg = config.get("training", {})
     data_cfg = config.get("data", {})
     inference_cfg = config.get("inference", {})
+    selected_categories_cfg = data_cfg.get("selected_categories", [])
+    selected_categories = parse_categories_arg(args.categories) if args.categories else list(selected_categories_cfg or [])
 
     result = evaluate_checkpoint(
         checkpoint_path=args.checkpoint,
         data_root=args.data_root,
-        category=args.category or smoke_cfg.get("category", "capsule"),
+        category=args.category,
+        categories=selected_categories,
         batch_size=args.batch_size or int(training_cfg.get("batch_size", smoke_cfg.get("batch_size", 2))),
         target_size=(args.image_size or int(data_cfg.get("image_size", 256)),) * 2,
         device=args.device or training_cfg.get("device", "cpu"),
@@ -111,6 +136,7 @@ def main() -> None:
         run_name=args.run_name or None,
         max_eval_batches=args.max_eval_batches,
         max_visualizations=args.max_visualizations,
+        seed=args.seed if args.seed is not None else int(training_cfg.get("seed", 7)),
         knowledge_base_root=args.knowledge_base_root or None,
         retrieval_top_k=args.retrieval_top_k or int(inference_cfg.get("retrieval_top_k", 3)),
         enable_llm_explanations=not args.disable_llm_explanations,

@@ -4,13 +4,37 @@ import torch
 from torch import nn
 
 
+def _resolve_attention_heads(embed_dim: int, requested_heads: int) -> int:
+    heads = max(1, min(requested_heads, embed_dim))
+    while embed_dim % heads != 0 and heads > 1:
+        heads -= 1
+    return max(1, heads)
+
+
 class CrossModalAttention2d(nn.Module):
-    def __init__(self, channels: int, num_heads: int = 4) -> None:
+    def __init__(
+        self,
+        query_channels: int,
+        context_channels: int | None = None,
+        *,
+        num_heads: int = 4,
+        dropout: float = 0.0,
+    ) -> None:
         super().__init__()
-        self.query_norm = nn.LayerNorm(channels)
-        self.context_norm = nn.LayerNorm(channels)
-        self.attention = nn.MultiheadAttention(channels, num_heads=num_heads, batch_first=True)
-        self.out_projection = nn.Linear(channels, channels)
+        self.query_channels = query_channels
+        self.context_channels = context_channels or query_channels
+        self.query_norm = nn.LayerNorm(query_channels)
+        self.context_norm = nn.LayerNorm(self.context_channels)
+        attention_heads = _resolve_attention_heads(query_channels, num_heads)
+        self.attention = nn.MultiheadAttention(
+            embed_dim=query_channels,
+            num_heads=attention_heads,
+            dropout=dropout,
+            batch_first=True,
+            kdim=self.context_channels,
+            vdim=self.context_channels,
+        )
+        self.out_projection = nn.Linear(query_channels, query_channels)
 
     def forward(self, query_map: torch.Tensor, context_map: torch.Tensor) -> torch.Tensor:
         batch, channels, height, width = query_map.shape

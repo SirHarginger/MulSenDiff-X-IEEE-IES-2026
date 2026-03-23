@@ -29,6 +29,13 @@ Instead of training a full joint generative model over all raw modalities, the s
 6. At inference, score anomalies from poor reconstruction or low conditional likelihood.
 7. Combine model residuals with descriptor evidence to support localisation and explanation.
 
+The same MulSenDiff-X code path now runs in two modes:
+
+- per-category baseline mode through `--category <name>`
+- shared 15-category mode through `--categories <csv|all>`
+
+The shared run is not a separate architecture file. It is the same MulSenDiff-X system with category-aware conditioning and joint training/evaluation.
+
 ## Why RGB Is the Generative Target
 
 The implementation follows the refined workflow direction:
@@ -109,12 +116,16 @@ A practical first scoring form is:
 
 ## Deployment Strategy
 
-Start with per-category models first.
+The development strategy in this repo is:
 
-Reasons:
+1. validate the system in per-category baseline mode first
+2. use those results to expose and fix preprocessing, projection, reconstruction, scoring, and calibration issues
+3. scale the same system into shared 15-category mode
+
+Reasons the baseline-first path mattered:
 
 - anomaly distributions differ strongly by object type
 - descriptor semantics differ across categories
-- per-category training is more stable for a first implementation
+- per-category validation exposed failures that would have been hidden inside an early joint run
 
-Later, the repo can explore shared-backbone or category-conditioned joint models.
+The current shared model is therefore best understood as **MulSenDiff-X in shared-category mode**, built on top of the validated per-category reference baselines.
