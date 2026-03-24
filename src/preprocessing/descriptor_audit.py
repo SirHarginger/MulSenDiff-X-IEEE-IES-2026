@@ -1,197 +1,68 @@
 from __future__ import annotations
 
+import csv
 import json
-from collections import defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from statistics import mean
-from typing import Dict, Iterable, List, Sequence
+from typing import Dict, List, Sequence
 
-from PIL import Image, ImageStat
-
-from src.preprocessing.crossmodal_descriptors import (
-    DescriptorArtifact,
-    DescriptorValidationIssue,
-    validate_descriptor_bundle,
-)
+import numpy as np
+from PIL import Image
+from src.preprocessing.crossmodal_descriptors import DescriptorArtifact, validate_descriptor_bundle
 
 
 @dataclass(frozen=True)
 class DescriptorQualityIssue:
-    manifest_path: str
+    sample_dir: str
     artifact: str
     severity: str
     message: str
     value: str = ""
 
 
-def _load_manifest(path: Path | str) -> List[DescriptorArtifact]:
-    payload = json.loads(Path(path).read_text(encoding="utf-8"))
-    return [DescriptorArtifact(**item) for item in payload]
-
-
-def _format_float(value: float) -> str:
-    return f"{value:.6f}"
-
-
-def _spatial_stats(path: Path) -> Dict[str, float]:
-    image = Image.open(path).convert("L")
-    stat = ImageStat.Stat(image)
-    pixels = list(image.getdata())
-    total = max(len(pixels), 1)
-    nonzero_ratio = sum(1 for value in pixels if value > 0) / total
-    minimum, maximum = image.getextrema()
-    return {
-        "mean": float(stat.mean[0]),
-        "std": float(stat.stddev[0]),
-        "nonzero_ratio": float(nonzero_ratio),
-        "minimum": float(minimum),
-        "maximum": float(maximum),
-    }
-
-
-def _artifact_name_group(name: str) -> str:
-    if name.startswith("infrared_"):
-        return "infrared"
-    if name.startswith("pointcloud_"):
-        return "pointcloud"
-    if name.startswith("crossmodal_"):
-        return "crossmodal"
-    return "unknown"
-
-
-def _audit_spatial_descriptor(
-    manifest_path: Path, artifact: DescriptorArtifact, issues: List[DescriptorQualityIssue], stats_out: Dict[str, float]
-) -> None:
-    path = Path(artifact.path)
-    stats = _spatial_stats(path)
-    stats_out.update(stats)
-
-    if stats["maximum"] == stats["minimum"]:
-        issues.append(
-            DescriptorQualityIssue(
-                str(manifest_path), artifact.name, "warning", "constant_spatial_descriptor", _format_float(stats["mean"])
-            )
-        )
-
-    if stats["std"] < 1.0:
-        issues.append(
-            DescriptorQualityIssue(
-                str(manifest_path), artifact.name, "warning", "very_low_spatial_variance", _format_float(stats["std"])
-            )
-        )
-
-    if stats["nonzero_ratio"] == 0.0:
-        issues.append(
-            DescriptorQualityIssue(str(manifest_path), artifact.name, "warning", "empty_spatial_signal", "0.0")
-        )
-
-    sparse_like = ("hotspot", "agreement", "edges", "support")
-    if any(token in artifact.name for token in sparse_like):
-        if stats["nonzero_ratio"] < 0.001:
-            issues.append(
-                DescriptorQualityIssue(
-                    str(manifest_path),
-                    artifact.name,
-                    "warning",
-                    "sparse_map_nearly_empty",
-                    _format_float(stats["nonzero_ratio"]),
-                )
-            )
-        if stats["nonzero_ratio"] > 0.95:
-            issues.append(
-                DescriptorQualityIssue(
-                    str(manifest_path),
-                    artifact.name,
-                    "warning",
-                    "sparse_map_nearly_full",
-                    _format_float(stats["nonzero_ratio"]),
-                )
-            )
-
-
-def _audit_global_descriptor(
-    manifest_path: Path, artifact: DescriptorArtifact, issues: List[DescriptorQualityIssue], stats_out: Dict[str, float]
-) -> None:
-    payload = json.loads(Path(artifact.path).read_text(encoding="utf-8"))
-    for key, value in payload.items():
-        if isinstance(value, (int, float)):
-            stats_out[key] = float(value)
-
-    name = artifact.name
-    if name == "infrared_global":
-        hotspot_ratio = float(payload.get("hotspot_ratio", 0.0))
-        std_intensity = float(payload.get("std_intensity", 0.0))
-        if hotspot_ratio <= 0.0:
-            issues.append(
-                DescriptorQualityIssue(str(manifest_path), name, "warning", "hotspot_ratio_zero", _format_float(hotspot_ratio))
-            )
-        if std_intensity < 3.0:
-            issues.append(
-                DescriptorQualityIssue(
-                    str(manifest_path), name, "warning", "infrared_low_global_contrast", _format_float(std_intensity)
-                )
-            )
-
-    if name == "pointcloud_global":
-        coverage_ratio = float(payload.get("coverage_ratio", 0.0))
-        vertex_count = float(payload.get("vertex_count", 0.0))
-        if vertex_count <= 0:
-            issues.append(
-                DescriptorQualityIssue(str(manifest_path), name, "error", "pointcloud_vertex_count_zero", str(vertex_count))
-            )
-        if coverage_ratio < 0.01:
-            issues.append(
-                DescriptorQualityIssue(
-                    str(manifest_path), name, "warning", "pointcloud_projection_low_coverage", _format_float(coverage_ratio)
-                )
-            )
-
-    if name == "crossmodal_global":
-        agreement_std = float(payload.get("agreement_std", 0.0))
-        support_mean = float(payload.get("support_mean", 0.0))
-        if agreement_std < 1.0:
-            issues.append(
-                DescriptorQualityIssue(
-                    str(manifest_path), name, "warning", "crossmodal_low_agreement_variation", _format_float(agreement_std)
-                )
-            )
-        if support_mean <= 0.5:
-            issues.append(
-                DescriptorQualityIssue(
-                    str(manifest_path), name, "warning", "crossmodal_low_support_signal", _format_float(support_mean)
-                )
-            )
-
-
-def audit_descriptor_manifest(
-    manifest_path: Path | str,
-) -> Dict[str, object]:
+def audit_descriptor_manifest(manifest_path: Path | str) -> Dict[str, object]:
     manifest_path = Path(manifest_path)
-    artifacts = _load_manifest(manifest_path)
-
+    artifacts = [DescriptorArtifact(**item) for item in json.loads(manifest_path.read_text(encoding="utf-8"))]
     issues: List[DescriptorQualityIssue] = []
     quality_stats: Dict[str, Dict[str, float]] = {}
 
-    validation_issues = validate_descriptor_bundle(artifacts)
-    for issue in validation_issues:
+    for issue in validate_descriptor_bundle(artifacts):
         issues.append(
             DescriptorQualityIssue(
-                str(manifest_path),
-                issue.artifact,
-                issue.severity,
-                f"validation::{issue.message}",
-                "",
+                sample_dir=str(manifest_path.parent),
+                artifact=issue.artifact,
+                severity=issue.severity,
+                message=issue.message,
             )
         )
 
     for artifact in artifacts:
-        per_artifact_stats: Dict[str, float] = {}
-        if artifact.kind == "spatial":
-            _audit_spatial_descriptor(manifest_path, artifact, issues, per_artifact_stats)
-        elif artifact.kind == "global":
-            _audit_global_descriptor(manifest_path, artifact, issues, per_artifact_stats)
-        quality_stats[artifact.name] = per_artifact_stats
+        path = Path(artifact.path)
+        stats: Dict[str, float] = {}
+        if artifact.kind == "spatial" and path.exists():
+            image = np.asarray(Image.open(path).convert("L"), dtype=np.float32) / 255.0
+            stats["mean"] = float(image.mean())
+            stats["std"] = float(image.std())
+            stats["nonzero_ratio"] = float(np.mean(image > 0))
+            if stats["std"] < 1e-6:
+                issues.append(
+                    DescriptorQualityIssue(str(manifest_path.parent), artifact.name, "warning", "constant_spatial_descriptor", f"{stats['mean']:.6f}")
+                )
+        if artifact.kind == "global" and path.exists():
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            for key, value in payload.items():
+                if isinstance(value, (int, float)):
+                    stats[key] = float(value)
+            if "hotspot_ratio" in payload and float(payload["hotspot_ratio"]) <= 0.0:
+                issues.append(
+                    DescriptorQualityIssue(str(manifest_path.parent), artifact.name, "warning", "hotspot_ratio_zero", f"{float(payload['hotspot_ratio']):.6f}")
+                )
+            if "std_intensity" in payload and float(payload["std_intensity"]) < 3.0:
+                issues.append(
+                    DescriptorQualityIssue(str(manifest_path.parent), artifact.name, "warning", "infrared_low_global_contrast", f"{float(payload['std_intensity']):.6f}")
+                )
+        quality_stats[artifact.name] = stats
 
     return {
         "manifest_path": str(manifest_path),
@@ -203,48 +74,148 @@ def audit_descriptor_manifest(
 
 def audit_descriptor_root(root: Path | str) -> Dict[str, object]:
     root = Path(root)
-    manifest_paths = sorted(root.rglob("manifest.json"))
+    manifest_paths = sorted(root.rglob("manifest.json")) if root.exists() else []
+    if manifest_paths:
+        issue_rows: List[DescriptorQualityIssue] = []
+        numeric_stats: Dict[str, Dict[str, List[float]]] = {"pointcloud": {}, "infrared": {}, "crossmodal": {}}
+        manifests_with_errors = 0
+        for manifest_path in manifest_paths:
+            result = audit_descriptor_manifest(manifest_path)
+            issues: Sequence[DescriptorQualityIssue] = result["issues"]  # type: ignore[assignment]
+            if any(issue.severity == "error" for issue in issues):
+                manifests_with_errors += 1
+            issue_rows.extend(issues)
+            quality_stats: Dict[str, Dict[str, float]] = result["quality_stats"]  # type: ignore[assignment]
+            for artifact_name, stats in quality_stats.items():
+                group = "infrared" if artifact_name.startswith("infrared") else "pointcloud" if artifact_name.startswith("pointcloud") else "crossmodal"
+                numeric_stats.setdefault(group, {})
+                for key, value in stats.items():
+                    numeric_stats[group].setdefault(key, []).append(value)
+        return {
+            "checked_manifests": len(manifest_paths),
+            "manifests_with_errors": manifests_with_errors,
+            "error_count": sum(1 for row in issue_rows if row.severity == "error"),
+            "warning_count": sum(1 for row in issue_rows if row.severity == "warning"),
+            "per_group_means": {
+                group: {metric: round(mean(values), 6) for metric, values in metrics.items() if values}
+                for group, metrics in numeric_stats.items()
+                if metrics
+            },
+            "issue_rows": issue_rows,
+        }
+
+    sample_dirs = sorted(path for path in root.iterdir() if path.is_dir()) if root.exists() else []
     issue_rows: List[DescriptorQualityIssue] = []
-    numeric_stats: Dict[str, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
-    manifests_with_errors = 0
+    per_group_values: Dict[str, Dict[str, List[float]]] = {
+        "infrared": {"hotspot_area_fraction": [], "ir_max_gradient": []},
+        "pointcloud": {"pc_mean_curvature": [], "pc_max_roughness": [], "pc_p95_normal_deviation": []},
+        "crossmodal": {"cross_overlap_score": [], "cross_inconsistency_score": []},
+    }
 
-    for manifest_path in manifest_paths:
-        result = audit_descriptor_manifest(manifest_path)
-        issues: Sequence[DescriptorQualityIssue] = result["issues"]  # type: ignore[assignment]
-        if any(issue.severity == "error" for issue in issues):
-            manifests_with_errors += 1
-        issue_rows.extend(issues)
+    for sample_dir in sample_dirs:
+        meta_path = sample_dir / "meta.json"
+        global_path = sample_dir / "global.json"
 
-        quality_stats: Dict[str, Dict[str, float]] = result["quality_stats"]  # type: ignore[assignment]
-        for artifact_name, stats in quality_stats.items():
-            group = _artifact_name_group(artifact_name)
-            for key, value in stats.items():
-                numeric_stats[group][key].append(value)
+        if not meta_path.exists():
+            issue_rows.append(
+                DescriptorQualityIssue(str(sample_dir), "meta.json", "error", "missing_metadata_file")
+            )
+            continue
+        if not global_path.exists():
+            issue_rows.append(
+                DescriptorQualityIssue(str(sample_dir), "global.json", "error", "missing_global_summary")
+            )
+            continue
 
-    summary = {
-        "checked_manifests": len(manifest_paths),
-        "manifests_with_errors": manifests_with_errors,
-        "error_count": sum(1 for issue in issue_rows if issue.severity == "error"),
-        "warning_count": sum(1 for issue in issue_rows if issue.severity == "warning"),
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            issue_rows.append(
+                DescriptorQualityIssue(str(sample_dir), "meta.json", "error", "invalid_metadata_json", str(exc))
+            )
+            continue
+
+        try:
+            global_payload = json.loads(global_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            issue_rows.append(
+                DescriptorQualityIssue(str(sample_dir), "global.json", "error", "invalid_global_summary_json", str(exc))
+            )
+            continue
+
+        try:
+            ir_hotspot_area_fraction = float(global_payload["ir_hotspot_area_fraction"])
+            ir_max_gradient = float(global_payload["ir_max_gradient"])
+            pc_mean_curvature = float(global_payload["pc_mean_curvature"])
+            pc_max_roughness = float(global_payload["pc_max_roughness"])
+            pc_p95_normal_deviation = float(global_payload["pc_p95_normal_deviation"])
+            cross_overlap_score = float(global_payload["cross_overlap_score"])
+            cross_inconsistency_score = float(global_payload["cross_inconsistency_score"])
+        except (KeyError, TypeError, ValueError) as exc:
+            issue_rows.append(
+                DescriptorQualityIssue(str(sample_dir), "global.json", "error", "invalid_global_summary_payload", str(exc))
+            )
+            continue
+
+        per_group_values["infrared"]["hotspot_area_fraction"].append(ir_hotspot_area_fraction)
+        per_group_values["infrared"]["ir_max_gradient"].append(ir_max_gradient)
+        per_group_values["pointcloud"]["pc_mean_curvature"].append(pc_mean_curvature)
+        per_group_values["pointcloud"]["pc_max_roughness"].append(pc_max_roughness)
+        per_group_values["pointcloud"]["pc_p95_normal_deviation"].append(pc_p95_normal_deviation)
+        per_group_values["crossmodal"]["cross_overlap_score"].append(cross_overlap_score)
+        per_group_values["crossmodal"]["cross_inconsistency_score"].append(cross_inconsistency_score)
+
+        if meta.get("split") == "train" and meta.get("defect_label") == "good" and ir_hotspot_area_fraction >= 0.02:
+            issue_rows.append(
+                DescriptorQualityIssue(
+                    str(sample_dir),
+                    "global.json",
+                    "warning",
+                    "train_hotspot_area_fraction_high",
+                    f"{ir_hotspot_area_fraction:.6f}",
+                )
+            )
+
+        for artifact in ["cross_agreement.png", "cross_inconsistency.png", "pc_density.png"]:
+            path = sample_dir / artifact
+            if not path.exists():
+                continue
+            image = np.asarray(Image.open(path).convert("L"), dtype=np.float32) / 255.0
+            if image.max() == image.min():
+                issue_rows.append(
+                    DescriptorQualityIssue(
+                        str(sample_dir),
+                        artifact,
+                        "warning",
+                        "constant_map",
+                        f"{float(image.mean()):.6f}",
+                    )
+                )
+            if artifact == "pc_density.png" and float(image.max()) <= 0.0:
+                issue_rows.append(
+                    DescriptorQualityIssue(str(sample_dir), artifact, "error", "empty_density_projection", "0.000000")
+                )
+
+    return {
+        "checked_manifests": len(sample_dirs),
+        "manifests_with_errors": sum(1 for row in issue_rows if row.severity == "error"),
+        "error_count": sum(1 for row in issue_rows if row.severity == "error"),
+        "warning_count": sum(1 for row in issue_rows if row.severity == "warning"),
         "per_group_means": {
-            group: {key: round(mean(values), 6) for key, values in metrics.items() if values}
-            for group, metrics in numeric_stats.items()
+            group: {metric: round(mean(values), 6) for metric, values in metrics.items() if values}
+            for group, metrics in per_group_values.items()
         },
         "issue_rows": issue_rows,
     }
-    return summary
 
 
 def write_descriptor_audit_reports(summary: Dict[str, object], csv_path: Path | str, json_path: Path | str) -> None:
-    import csv
-
     csv_path = Path(csv_path)
     json_path = Path(json_path)
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.parent.mkdir(parents=True, exist_ok=True)
 
     rows: Sequence[DescriptorQualityIssue] = summary["issue_rows"]  # type: ignore[assignment]
-
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(DescriptorQualityIssue.__dataclass_fields__.keys()))
         writer.writeheader()

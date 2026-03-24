@@ -5,16 +5,14 @@ import argparse
 import sys
 from pathlib import Path
 
-import yaml
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.training.train_diffusion import train_model
-
 
 def load_config(path: str) -> dict:
+    import yaml
+
     payload = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     return payload if isinstance(payload, dict) else {}
 
@@ -23,17 +21,37 @@ def parse_csv_floats(value: str) -> list[float]:
     return [float(item.strip()) for item in value.split(",") if item.strip()]
 
 
+def parse_categories_arg(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
 def coerce_bool_arg(value: str, fallback: bool) -> bool:
     if not value:
         return fallback
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Train MulSenDiff-X and save a complete run folder.")
+def build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Train MulSenDiff-X in baseline per-category mode (`--category`) "
+            "or shared joint mode (`--categories`)."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  python scripts/run_training.py --category capsule --device-mode cpu\n"
+            "  python scripts/run_training.py --categories all --device-mode cuda"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("--config", default="config/diffusion.yaml")
     parser.add_argument("--data-root", default="data")
-    parser.add_argument("--category", default="")
+    parser.add_argument("--category", default="", help="Baseline mode: train one category such as 'capsule'.")
+    parser.add_argument(
+        "--categories",
+        default="",
+        help="Shared mode: comma-separated categories or 'all' via config selection.",
+    )
     parser.add_argument("--epochs", type=int, default=0)
     parser.add_argument("--epochs-long", action="store_true")
     parser.add_argument("--batch-size", type=int, default=0)
@@ -66,6 +84,7 @@ def main() -> None:
     parser.add_argument("--base-channels", type=int, default=0)
     parser.add_argument("--global-embedding-dim", type=int, default=0)
     parser.add_argument("--time-embedding-dim", type=int, default=0)
+    parser.add_argument("--category-embedding-dim", type=int, default=0)
     parser.add_argument("--attention-heads", type=int, default=0)
     parser.add_argument("--latent-channels", type=int, default=0)
     parser.add_argument("--diffusion-steps", type=int, default=0)
@@ -73,9 +92,21 @@ def main() -> None:
     parser.add_argument("--beta-end", type=float, default=0.0)
     parser.add_argument("--noise-schedule", default="")
     parser.add_argument("--autoencoder-reconstruction-weight", type=float, default=0.0)
+    parser.add_argument("--diffusion-reconstruction-weight", type=float, default=0.0)
+    parser.add_argument("--edge-reconstruction-weight", type=float, default=0.0)
+    parser.add_argument("--sampler-mode", default="")
+    parser.add_argument("--selection-metric", default="")
+    parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--log-every-n-steps", type=int, default=0)
     parser.add_argument("--no-jsonl", action="store_true")
+    return parser
+
+
+def main() -> None:
+    parser = build_arg_parser()
     args = parser.parse_args()
+
+    from src.training.train_diffusion import train_model
 
     config = load_config(args.config)
     smoke_cfg = config.get("smoke", {})
@@ -84,11 +115,14 @@ def main() -> None:
     model_cfg = config.get("model", {})
     conditioning_cfg = config.get("conditioning", {})
     inference_cfg = config.get("inference", {})
+    selected_categories_cfg = data_cfg.get("selected_categories", [])
+    selected_categories = parse_categories_arg(args.categories) if args.categories else list(selected_categories_cfg or [])
 
     epochs = args.epochs or int(training_cfg.get("epochs_long" if args.epochs_long else "epochs", 50))
     result = train_model(
         data_root=args.data_root,
         category=args.category or smoke_cfg.get("category", "capsule"),
+        categories=selected_categories,
         epochs=epochs,
         batch_size=args.batch_size or int(training_cfg.get("batch_size", smoke_cfg.get("batch_size", 2))),
         target_size=(args.image_size or int(data_cfg.get("image_size", 256)),) * 2,
@@ -134,13 +168,19 @@ def main() -> None:
         base_channels=args.base_channels or int(model_cfg.get("base_channels", 32)),
         global_embedding_dim=args.global_embedding_dim or int(conditioning_cfg.get("global_embedding_dim", 128)),
         time_embedding_dim=args.time_embedding_dim or int(conditioning_cfg.get("time_embedding_dim", 128)),
+        category_embedding_dim=args.category_embedding_dim or int(conditioning_cfg.get("category_embedding_dim", 32)),
         attention_heads=args.attention_heads or int(model_cfg.get("attention_heads", 4)),
         latent_channels=args.latent_channels or int(model_cfg.get("latent_channels", 4)),
         diffusion_steps=args.diffusion_steps or int(model_cfg.get("diffusion_steps", 1000)),
         beta_start=args.beta_start or float(model_cfg.get("beta_start", 1e-4)),
         beta_end=args.beta_end or float(model_cfg.get("beta_end", 2e-2)),
         noise_schedule=args.noise_schedule or str(model_cfg.get("noise_schedule", "cosine")),
-        autoencoder_reconstruction_weight=args.autoencoder_reconstruction_weight or float(model_cfg.get("autoencoder_reconstruction_weight", 0.1)),
+        autoencoder_reconstruction_weight=args.autoencoder_reconstruction_weight or float(model_cfg.get("autoencoder_reconstruction_weight", 0.5)),
+        diffusion_reconstruction_weight=args.diffusion_reconstruction_weight or float(model_cfg.get("diffusion_reconstruction_weight", 0.1)),
+        edge_reconstruction_weight=args.edge_reconstruction_weight or float(model_cfg.get("edge_reconstruction_weight", 0.05)),
+        sampler_mode=args.sampler_mode or str(training_cfg.get("sampler_mode", "balanced_by_category")),
+        selection_metric=args.selection_metric or str(training_cfg.get("selection_metric", "macro_image_auroc")),
+        seed=args.seed if args.seed is not None else int(training_cfg.get("seed", 7)),
         log_every_n_steps=args.log_every_n_steps or int(training_cfg.get("log_every_n_steps", 10)),
         log_to_jsonl=not args.no_jsonl if args.no_jsonl else bool(training_cfg.get("log_to_jsonl", True)),
     )

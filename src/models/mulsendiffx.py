@@ -2,22 +2,42 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import math
 import torch
 from torch import nn
 
 from src.models.diffusion_unet import ConditionedUNet, SinusoidalTimeEmbedding
-from src.models.encoders import GlobalConditionEncoder, RGBAppearanceEncoder, SpatialDescriptorEncoder
-from src.models.fusion import DescriptorConditionFusion
-from src.training.losses import mse_loss
+from src.models.encoders import GlobalConditionEncoder, RGBAutoencoder, SpatialDescriptorEncoder
+from src.training.losses import mixed_reconstruction_loss, mse_loss, sobel_edge_loss
 
 
 @dataclass(frozen=True)
 class DiffusionOutputs:
     predicted_noise: torch.Tensor
-    noisy_rgb: torch.Tensor
+    noisy_latent: torch.Tensor
     target_noise: torch.Tensor
     timesteps: torch.Tensor
     loss: torch.Tensor
+    noise_loss: torch.Tensor
+    autoencoder_reconstruction_loss: torch.Tensor
+    diffusion_reconstruction_loss: torch.Tensor
+    edge_reconstruction_loss: torch.Tensor
+    clean_latent: torch.Tensor
+    predicted_clean_latent: torch.Tensor
+    reconstructed_rgb: torch.Tensor
+    autoencoded_rgb: torch.Tensor
+
+
+def _cosine_beta_schedule(steps: int, *, s: float = 0.008, max_beta: float = 0.999) -> torch.Tensor:
+    time = torch.linspace(0, steps, steps + 1, dtype=torch.float32)
+    alpha_bar = torch.cos(((time / steps) + s) / (1 + s) * math.pi * 0.5).pow(2)
+    alpha_bar = alpha_bar / alpha_bar[0]
+    betas = 1.0 - (alpha_bar[1:] / alpha_bar[:-1])
+    return betas.clamp(1e-5, max_beta)
+
+
+def _linear_beta_schedule(steps: int, beta_start: float, beta_end: float) -> torch.Tensor:
+    return torch.linspace(beta_start, beta_end, steps, dtype=torch.float32)
 
 
 class MulSenDiffX(nn.Module):
@@ -25,29 +45,68 @@ class MulSenDiffX(nn.Module):
         self,
         *,
         rgb_channels: int = 3,
-        descriptor_channels: int = 13,
-        global_dim: int = 21,
+        descriptor_channels: int = 7,
+        global_dim: int = 10,
         base_channels: int = 32,
-        global_embedding_dim: int = 64,
-        time_embedding_dim: int = 64,
+        global_embedding_dim: int = 128,
+        time_embedding_dim: int = 128,
+        num_categories: int = 1,
+        category_embedding_dim: int = 32,
+        attention_heads: int = 4,
+        latent_channels: int = 4,
         diffusion_steps: int = 1000,
         beta_start: float = 1e-4,
         beta_end: float = 2e-2,
+        noise_schedule: str = "cosine",
+        autoencoder_reconstruction_weight: float = 0.5,
+        diffusion_reconstruction_weight: float = 0.1,
+        edge_reconstruction_weight: float = 0.05,
     ) -> None:
         super().__init__()
-        self.rgb_encoder = RGBAppearanceEncoder(in_channels=rgb_channels, base_channels=base_channels)
-        self.descriptor_encoder = SpatialDescriptorEncoder(in_channels=descriptor_channels, base_channels=base_channels)
-        self.global_encoder = GlobalConditionEncoder(global_dim, embedding_dim=global_embedding_dim)
-        self.time_encoder = SinusoidalTimeEmbedding(time_embedding_dim)
-        condition_dim = global_embedding_dim + time_embedding_dim
-        self.fusion = DescriptorConditionFusion(base_channels * 4, condition_dim)
-        self.unet = ConditionedUNet(
-            rgb_channels=rgb_channels,
+        self.rgb_autoencoder = RGBAutoencoder(
+            in_channels=rgb_channels,
             base_channels=base_channels,
-            condition_dim=condition_dim,
+            latent_channels=latent_channels,
         )
+        self.descriptor_encoder = SpatialDescriptorEncoder(
+            in_channels=descriptor_channels,
+            base_channels=base_channels,
+            context_channels=global_embedding_dim,
+        )
+        self.global_encoder = GlobalConditionEncoder(global_dim, embedding_dim=global_embedding_dim)
+        self.category_embedding = nn.Embedding(max(num_categories, 1), category_embedding_dim)
+        self.category_global_fusion = nn.Sequential(
+            nn.Linear(global_embedding_dim + category_embedding_dim, global_embedding_dim),
+            nn.LayerNorm(global_embedding_dim),
+            nn.GELU(),
+            nn.Linear(global_embedding_dim, global_embedding_dim),
+        )
+        self.time_encoder = SinusoidalTimeEmbedding(time_embedding_dim)
+        self.unet = ConditionedUNet(
+            latent_channels=latent_channels,
+            base_channels=base_channels,
+            context_channels=global_embedding_dim,
+            global_dim=global_embedding_dim,
+            time_dim=time_embedding_dim,
+            attention_heads=attention_heads,
+        )
+        self.global_embedding_dim = global_embedding_dim
+        self.time_embedding_dim = time_embedding_dim
+        self.category_embedding_dim = category_embedding_dim
+        self.num_categories = max(int(num_categories), 1)
+        self.latent_channels = latent_channels
+        self.noise_schedule = noise_schedule
+        self.autoencoder_reconstruction_weight = autoencoder_reconstruction_weight
+        self.diffusion_reconstruction_weight = diffusion_reconstruction_weight
+        self.edge_reconstruction_weight = edge_reconstruction_weight
 
-        betas = torch.linspace(beta_start, beta_end, diffusion_steps, dtype=torch.float32)
+        if noise_schedule == "cosine":
+            betas = _cosine_beta_schedule(diffusion_steps)
+        elif noise_schedule == "linear":
+            betas = _linear_beta_schedule(diffusion_steps, beta_start=beta_start, beta_end=beta_end)
+        else:
+            raise ValueError(f"Unsupported noise_schedule={noise_schedule!r}. Expected 'cosine' or 'linear'.")
+
         alphas = 1.0 - betas
         alpha_bars = torch.cumprod(alphas, dim=0)
         self.register_buffer("betas", betas)
@@ -60,64 +119,101 @@ class MulSenDiffX(nn.Module):
     def diffusion_steps(self) -> int:
         return int(self.betas.shape[0])
 
+    def encode_rgb(self, clean_rgb: torch.Tensor) -> torch.Tensor:
+        return self.rgb_autoencoder.encode(clean_rgb)
+
+    def decode_latent(self, latent: torch.Tensor) -> torch.Tensor:
+        return self.rgb_autoencoder.decode(latent)
+
     def sample_timesteps(self, batch_size: int, device: torch.device) -> torch.Tensor:
         return torch.randint(0, self.diffusion_steps, (batch_size,), device=device, dtype=torch.long)
 
-    def q_sample(self, clean_rgb: torch.Tensor, timesteps: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
+    def q_sample(self, clean_latent: torch.Tensor, timesteps: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
         alpha = self.sqrt_alpha_bars[timesteps].view(-1, 1, 1, 1)
         sigma = self.sqrt_one_minus_alpha_bars[timesteps].view(-1, 1, 1, 1)
-        return alpha * clean_rgb + sigma * noise
+        return alpha * clean_latent + sigma * noise
 
     def predict_x0_from_noise(
         self,
-        noisy_rgb: torch.Tensor,
+        noisy_latent: torch.Tensor,
         timesteps: torch.Tensor,
         predicted_noise: torch.Tensor,
     ) -> torch.Tensor:
         alpha = self.sqrt_alpha_bars[timesteps].view(-1, 1, 1, 1)
         sigma = self.sqrt_one_minus_alpha_bars[timesteps].view(-1, 1, 1, 1)
-        return (noisy_rgb - sigma * predicted_noise) / alpha.clamp_min(1e-6)
+        return (noisy_latent - sigma * predicted_noise) / alpha.clamp_min(1e-6)
 
     def forward(
         self,
-        noisy_rgb: torch.Tensor,
+        noisy_latent: torch.Tensor,
         descriptor_maps: torch.Tensor,
         global_vector: torch.Tensor,
-        timesteps: torch.Tensor,
+        category_indices: torch.Tensor | None = None,
+        timesteps: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        rgb_features = self.rgb_encoder(noisy_rgb)
-        descriptor_features = self.descriptor_encoder(descriptor_maps)
+        if timesteps is None:
+            if category_indices is None:
+                raise ValueError("timesteps are required for MulSenDiffX.forward().")
+            timesteps = category_indices
+            category_indices = None
+        if category_indices is None:
+            category_indices = torch.zeros((noisy_latent.shape[0],), dtype=torch.long, device=noisy_latent.device)
+        descriptor_context = self.descriptor_encoder(descriptor_maps)
         global_embedding = self.global_encoder(global_vector)
-        time_embedding = self.time_encoder(timesteps)
-        condition_vector = torch.cat([global_embedding, time_embedding], dim=1)
-        fused_bottleneck = self.fusion(
-            rgb_bottleneck=rgb_features.bottleneck,
-            descriptor_bottleneck=descriptor_features.bottleneck,
-            condition_vector=condition_vector,
+        category_embedding = self.category_embedding(category_indices.clamp_min(0))
+        fused_global_embedding = self.category_global_fusion(
+            torch.cat([global_embedding, category_embedding], dim=1)
         )
-        return self.unet(fused_bottleneck, tuple(rgb_features.skips), condition_vector)
+        time_embedding = self.time_encoder(timesteps)
+        return self.unet(noisy_latent, descriptor_context, fused_global_embedding, time_embedding)
 
     def training_outputs(
         self,
         clean_rgb: torch.Tensor,
         descriptor_maps: torch.Tensor,
         global_vector: torch.Tensor,
+        category_indices: torch.Tensor | None = None,
         *,
         timesteps: torch.Tensor | None = None,
         noise: torch.Tensor | None = None,
         generator: torch.Generator | None = None,
     ) -> DiffusionOutputs:
+        clean_latent = self.encode_rgb(clean_rgb)
+        if category_indices is None:
+            category_indices = torch.zeros((clean_rgb.shape[0],), dtype=torch.long, device=clean_rgb.device)
         if timesteps is None:
             timesteps = self.sample_timesteps(clean_rgb.shape[0], clean_rgb.device)
         if noise is None:
-            noise = torch.randn(clean_rgb.shape, generator=generator, device=clean_rgb.device, dtype=clean_rgb.dtype)
-        noisy_rgb = self.q_sample(clean_rgb, timesteps, noise)
-        predicted_noise = self.forward(noisy_rgb, descriptor_maps, global_vector, timesteps)
-        loss = mse_loss(predicted_noise, noise)
+            noise = torch.randn(clean_latent.shape, generator=generator, device=clean_rgb.device, dtype=clean_latent.dtype)
+        noisy_latent = self.q_sample(clean_latent, timesteps, noise)
+        predicted_noise = self.forward(noisy_latent, descriptor_maps, global_vector, category_indices, timesteps)
+        predicted_clean_latent = self.predict_x0_from_noise(noisy_latent, timesteps, predicted_noise)
+        reconstructed_rgb = self.decode_latent(predicted_clean_latent)
+        autoencoded_rgb = self.decode_latent(clean_latent)
+        noise_loss = mse_loss(predicted_noise, noise)
+        autoencoder_reconstruction_loss = mixed_reconstruction_loss(autoencoded_rgb, clean_rgb)
+        diffusion_reconstruction_loss = mixed_reconstruction_loss(reconstructed_rgb, clean_rgb)
+        edge_reconstruction_loss = 0.5 * (
+            sobel_edge_loss(autoencoded_rgb, clean_rgb) + sobel_edge_loss(reconstructed_rgb, clean_rgb)
+        )
+        loss = (
+            noise_loss
+            + self.autoencoder_reconstruction_weight * autoencoder_reconstruction_loss
+            + self.diffusion_reconstruction_weight * diffusion_reconstruction_loss
+            + self.edge_reconstruction_weight * edge_reconstruction_loss
+        )
         return DiffusionOutputs(
             predicted_noise=predicted_noise,
-            noisy_rgb=noisy_rgb,
+            noisy_latent=noisy_latent,
             target_noise=noise,
             timesteps=timesteps,
             loss=loss,
+            noise_loss=noise_loss,
+            autoencoder_reconstruction_loss=autoencoder_reconstruction_loss,
+            diffusion_reconstruction_loss=diffusion_reconstruction_loss,
+            edge_reconstruction_loss=edge_reconstruction_loss,
+            clean_latent=clean_latent,
+            predicted_clean_latent=predicted_clean_latent,
+            reconstructed_rgb=reconstructed_rgb,
+            autoencoded_rgb=autoencoded_rgb,
         )

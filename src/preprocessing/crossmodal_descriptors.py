@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
-from PIL import Image, ImageChops, ImageStat
+import numpy as np
+from PIL import Image
 
 
 @dataclass(frozen=True)
@@ -53,32 +54,23 @@ def build_descriptor_metadata(
 def validate_descriptor_artifact(artifact: DescriptorArtifact) -> List[DescriptorValidationIssue]:
     issues: List[DescriptorValidationIssue] = []
     path = Path(artifact.path)
-
     if artifact.kind not in {"spatial", "global"}:
-        issues.append(
-            DescriptorValidationIssue(artifact.name, "error", f"unsupported_descriptor_kind={artifact.kind}")
-        )
+        issues.append(DescriptorValidationIssue(artifact.name, "error", f"unsupported_descriptor_kind={artifact.kind}"))
         return issues
-
     if not path.exists():
         issues.append(DescriptorValidationIssue(artifact.name, "error", f"missing_file={path}"))
         return issues
-
     if path.stat().st_size <= 0:
         issues.append(DescriptorValidationIssue(artifact.name, "error", "empty_descriptor_file"))
-
     if artifact.kind == "spatial":
         if artifact.width <= 0 or artifact.height <= 0:
             issues.append(DescriptorValidationIssue(artifact.name, "error", "invalid_spatial_shape"))
         if artifact.channels <= 0:
             issues.append(DescriptorValidationIssue(artifact.name, "error", "missing_spatial_channels"))
-    elif artifact.kind == "global":
-        if artifact.vector_length <= 0:
-            issues.append(DescriptorValidationIssue(artifact.name, "error", "invalid_global_vector_length"))
-
+    if artifact.kind == "global" and artifact.vector_length <= 0:
+        issues.append(DescriptorValidationIssue(artifact.name, "error", "invalid_global_vector_length"))
     if not artifact.dtype:
         issues.append(DescriptorValidationIssue(artifact.name, "warning", "missing_dtype_metadata"))
-
     return issues
 
 
@@ -91,19 +83,16 @@ def validate_descriptor_bundle(
     issues: List[DescriptorValidationIssue] = []
     spatial_count = 0
     global_count = 0
-
     for artifact in artifacts:
         if artifact.kind == "spatial":
             spatial_count += 1
-        elif artifact.kind == "global":
+        if artifact.kind == "global":
             global_count += 1
         issues.extend(validate_descriptor_artifact(artifact))
-
     if require_spatial and spatial_count == 0:
         issues.append(DescriptorValidationIssue("bundle", "error", "missing_spatial_descriptor"))
     if require_global and global_count == 0:
         issues.append(DescriptorValidationIssue("bundle", "error", "missing_global_descriptor"))
-
     return issues
 
 
@@ -114,171 +103,141 @@ def descriptor_bundle_is_valid(artifacts: Sequence[DescriptorArtifact]) -> bool:
 def write_descriptor_manifest(artifacts: Sequence[DescriptorArtifact], out_path: Path | str) -> None:
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = [asdict(artifact) for artifact in artifacts]
-    out_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    out_path.write_text(json.dumps([asdict(artifact) for artifact in artifacts], indent=2, sort_keys=True), encoding="utf-8")
 
 
-def _load_descriptor_manifest(path: Path | str) -> List[DescriptorArtifact]:
+def resize_to_rgb_grid(array: np.ndarray, *, target_size: tuple[int, int] = (256, 256)) -> np.ndarray:
+    image = Image.fromarray((np.clip(array, 0.0, 1.0) * 255.0).round().astype(np.uint8), mode="L")
+    image = image.resize(target_size, Image.BILINEAR)
+    return np.asarray(image, dtype=np.float32) / 255.0
+
+
+def verify_crossmodal_alignment(
+    ir_normalized: np.ndarray,
+    pc_depth: np.ndarray,
+    *,
+    tolerance_px: int = 5,
+) -> Dict[str, object]:
+    ir_mask = ir_normalized > 0.02
+    pc_mask = pc_depth > 0.02
+    ir_bbox = _bbox(ir_mask) or _full_frame_bbox(ir_normalized.shape)
+    pc_bbox = _bbox(pc_mask) or _full_frame_bbox(pc_depth.shape)
+
+    deltas = [abs(a - b) for a, b in zip(ir_bbox, pc_bbox)]
+    max_delta = max(deltas) if deltas else 0
+    return {
+        "passed": max_delta <= tolerance_px,
+        "message": "ok" if max_delta <= tolerance_px else "boundary_overlap_exceeds_tolerance",
+        "ir_bbox": ir_bbox,
+        "pc_bbox": pc_bbox,
+        "max_delta": max_delta,
+    }
+
+
+def generate_crossmodal_maps(
+    *,
+    ir_hotspot: np.ndarray,
+    ir_gradient: np.ndarray,
+    pc_curvature: np.ndarray,
+    pc_roughness: np.ndarray,
+    ir_normalized: np.ndarray,
+    pc_depth: np.ndarray,
+    target_size: tuple[int, int] = (256, 256),
+    tolerance_px: int = 5,
+) -> Dict[str, object]:
+    alignment = verify_crossmodal_alignment(ir_normalized, pc_depth, tolerance_px=tolerance_px)
+
+    cross_ir_support = np.maximum(
+        resize_to_rgb_grid(ir_hotspot, target_size=target_size),
+        resize_to_rgb_grid(ir_gradient, target_size=target_size),
+    ).astype(np.float32)
+    cross_geo_support = np.maximum(
+        resize_to_rgb_grid(pc_curvature, target_size=target_size),
+        resize_to_rgb_grid(pc_roughness, target_size=target_size),
+    ).astype(np.float32)
+    cross_agreement = np.clip(cross_ir_support * cross_geo_support, 0.0, 1.0).astype(np.float32)
+    cross_inconsistency = np.abs(cross_ir_support - cross_geo_support).astype(np.float32)
+
+    return {
+        "cross_ir_support": cross_ir_support,
+        "cross_geo_support": cross_geo_support,
+        "cross_agreement": cross_agreement,
+        "cross_inconsistency": cross_inconsistency,
+        "global": {
+            "cross_overlap_score": round(float(cross_agreement.mean()), 6),
+            "cross_centroid_distance": round(
+                _top_percent_centroid_distance(cross_ir_support, cross_geo_support, percentile=95.0),
+                6,
+            ),
+            "cross_inconsistency_score": round(float(cross_inconsistency.mean()), 6),
+            "cross_alignment_passed": bool(alignment["passed"]),
+            "cross_alignment_message": str(alignment["message"]),
+            "cross_alignment_max_delta": int(alignment["max_delta"]),
+        },
+        "alignment": alignment,
+    }
+
+
+def save_grayscale_png(array: np.ndarray, path: Path | str) -> None:
     path = Path(path)
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    return [DescriptorArtifact(**item) for item in payload]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    Image.fromarray((np.clip(array, 0.0, 1.0) * 255.0).round().astype(np.uint8), mode="L").save(path)
 
 
-def _find_artifact(artifacts: Sequence[DescriptorArtifact], name: str) -> DescriptorArtifact:
-    for artifact in artifacts:
-        if artifact.name == name:
-            return artifact
-    raise KeyError(name)
+def save_preview_png(
+    array: np.ndarray,
+    path: Path | str,
+    *,
+    upper_percentile: float = 99.5,
+) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    clipped = np.clip(array, 0.0, 1.0).astype(np.float32, copy=False)
+    nonzero = clipped[clipped > 0.0]
+    if nonzero.size == 0:
+        preview = np.zeros_like(clipped, dtype=np.float32)
+    else:
+        upper = float(np.percentile(nonzero, upper_percentile))
+        preview = np.clip(clipped / max(upper, 1e-6), 0.0, 1.0).astype(np.float32)
+
+    Image.fromarray((preview * 255.0).round().astype(np.uint8), mode="L").save(path)
 
 
-def _binary_union(left: Image.Image, right: Image.Image) -> Image.Image:
-    return ImageChops.lighter(left.convert("L"), right.convert("L"))
-
-
-def _binary_overlap_ratio(left: Image.Image, right: Image.Image) -> float:
-    left_pixels = list(left.convert("L").getdata())
-    right_pixels = list(right.convert("L").getdata())
-    intersection = 0
-    union = 0
-    for l_value, r_value in zip(left_pixels, right_pixels):
-        l_active = l_value > 0
-        r_active = r_value > 0
-        intersection += int(l_active and r_active)
-        union += int(l_active or r_active)
-    if union == 0:
-        return 0.0
-    return intersection / union
-
-
-def _mask_centroid(mask: Image.Image) -> Tuple[float, float] | None:
-    mask = mask.convert("L")
-    width, height = mask.size
-    sum_x = 0.0
-    sum_y = 0.0
-    count = 0.0
-    for index, value in enumerate(mask.getdata()):
-        if value > 0:
-            sum_x += index % width
-            sum_y += index // width
-            count += 1.0
-    if count == 0.0:
+def _bbox(mask: np.ndarray) -> Tuple[int, int, int, int] | None:
+    coordinates = np.argwhere(mask)
+    if coordinates.size == 0:
         return None
-    return (sum_x / count, sum_y / count)
+    ys = coordinates[:, 0]
+    xs = coordinates[:, 1]
+    return int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())
 
 
-def _centroid_distance(left: Image.Image, right: Image.Image) -> float:
-    left_centroid = _mask_centroid(left)
-    right_centroid = _mask_centroid(right)
+def _full_frame_bbox(shape: tuple[int, int]) -> Tuple[int, int, int, int]:
+    height, width = shape
+    return 0, 0, max(width - 1, 0), max(height - 1, 0)
+
+
+def _top_percent_centroid_distance(left: np.ndarray, right: np.ndarray, *, percentile: float) -> float:
+    left_centroid = _top_percent_centroid(left, percentile=percentile)
+    right_centroid = _top_percent_centroid(right, percentile=percentile)
     if left_centroid is None or right_centroid is None:
         return 1.0
-    width, height = left.size
-    diagonal = max((width**2 + height**2) ** 0.5, 1.0)
-    dx = left_centroid[0] - right_centroid[0]
-    dy = left_centroid[1] - right_centroid[1]
-    return ((dx**2 + dy**2) ** 0.5) / diagonal
+    height, width = left.shape
+    diagonal = max(float((height * height + width * width) ** 0.5), 1e-6)
+    dx = float(left_centroid[0] - right_centroid[0])
+    dy = float(left_centroid[1] - right_centroid[1])
+    return float(((dx * dx + dy * dy) ** 0.5) / diagonal)
 
 
-def generate_crossmodal_descriptor_bundle(
-    rgb_path: Path | str,
-    infrared_manifest_path: Path | str,
-    pointcloud_manifest_path: Path | str,
-    out_dir: Path | str,
-) -> Dict[str, object]:
-    rgb_path = Path(rgb_path)
-    out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    rgb_size = Image.open(rgb_path).size
-    ir_artifacts = _load_descriptor_manifest(infrared_manifest_path)
-    pc_artifacts = _load_descriptor_manifest(pointcloud_manifest_path)
-
-    ir_hotspot = Image.open(_find_artifact(ir_artifacts, "infrared_hotspot").path).convert("L").resize(rgb_size)
-    pc_curvature = Image.open(_find_artifact(pc_artifacts, "pointcloud_curvature").path).convert("L").resize(rgb_size)
-    pc_roughness = Image.open(_find_artifact(pc_artifacts, "pointcloud_roughness").path).convert("L").resize(rgb_size)
-    pc_normal_deviation = (
-        Image.open(_find_artifact(pc_artifacts, "pointcloud_normal_deviation").path).convert("L").resize(rgb_size)
-    )
-    pc_density = Image.open(_find_artifact(pc_artifacts, "pointcloud_density_topdown").path).convert("L").resize(rgb_size)
-
-    geometric_suspicion = ImageChops.lighter(pc_curvature, ImageChops.lighter(pc_roughness, pc_normal_deviation))
-    agreement = ImageChops.multiply(ir_hotspot, geometric_suspicion)
-    support = ImageChops.lighter(pc_density, agreement)
-    inconsistency = ImageChops.difference(ir_hotspot, geometric_suspicion)
-
-    ir_support_path = out_dir / "infrared_support.png"
-    geometric_support_path = out_dir / "geometric_support.png"
-    agreement_path = out_dir / "agreement.png"
-    inconsistency_path = out_dir / "inconsistency.png"
-    global_path = out_dir / "global.json"
-    manifest_path = out_dir / "manifest.json"
-
-    ir_hotspot.save(ir_support_path)
-    support.save(geometric_support_path)
-    agreement.save(agreement_path)
-    inconsistency.save(inconsistency_path)
-
-    agreement_stat = ImageStat.Stat(agreement)
-    support_stat = ImageStat.Stat(support)
-    inconsistency_stat = ImageStat.Stat(inconsistency)
-    overlap_score = _binary_overlap_ratio(ir_hotspot, geometric_suspicion)
-    centroid_distance = _centroid_distance(ir_hotspot, geometric_suspicion)
-    global_summary = {
-        "rgb_width": rgb_size[0],
-        "rgb_height": rgb_size[1],
-        "agreement_mean": round(agreement_stat.mean[0], 6),
-        "agreement_std": round(agreement_stat.stddev[0], 6),
-        "support_mean": round(support_stat.mean[0], 6),
-        "ir_pc_overlap_score": round(overlap_score, 6),
-        "ir_pc_centroid_distance": round(centroid_distance, 6),
-        "crossmodal_inconsistency_score": round(inconsistency_stat.mean[0] / 255.0, 6),
-        "source_rgb_path": str(rgb_path),
-    }
-    global_path.write_text(json.dumps(global_summary, indent=2, sort_keys=True), encoding="utf-8")
-
-    artifacts = [
-        build_descriptor_metadata(
-            name="crossmodal_infrared_support",
-            kind="spatial",
-            path=ir_support_path,
-            channels=1,
-            width=rgb_size[0],
-            height=rgb_size[1],
-            dtype="uint8",
-        ),
-        build_descriptor_metadata(
-            name="crossmodal_geometric_support",
-            kind="spatial",
-            path=geometric_support_path,
-            channels=1,
-            width=rgb_size[0],
-            height=rgb_size[1],
-            dtype="uint8",
-        ),
-        build_descriptor_metadata(
-            name="crossmodal_agreement",
-            kind="spatial",
-            path=agreement_path,
-            channels=1,
-            width=rgb_size[0],
-            height=rgb_size[1],
-            dtype="uint8",
-        ),
-        build_descriptor_metadata(
-            name="crossmodal_inconsistency",
-            kind="spatial",
-            path=inconsistency_path,
-            channels=1,
-            width=rgb_size[0],
-            height=rgb_size[1],
-            dtype="uint8",
-        ),
-        build_descriptor_metadata(
-            name="crossmodal_global",
-            kind="global",
-            path=global_path,
-            vector_length=6,
-            dtype="json",
-        ),
-    ]
-    write_descriptor_manifest(artifacts, manifest_path)
-    return {"artifacts": artifacts, "manifest_path": manifest_path, "global_summary": global_summary}
+def _top_percent_centroid(array: np.ndarray, *, percentile: float) -> tuple[float, float] | None:
+    if array.size == 0:
+        return None
+    threshold = float(np.percentile(array, percentile))
+    mask = array >= threshold
+    coordinates = np.argwhere(mask)
+    if coordinates.size == 0:
+        return None
+    ys = coordinates[:, 0].astype(np.float32)
+    xs = coordinates[:, 1].astype(np.float32)
+    return float(xs.mean()), float(ys.mean())
