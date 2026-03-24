@@ -14,6 +14,7 @@ def render_templated_explanation(package: EvidencePackage) -> str:
         f"Status: {package.status} ({package.severity_0_100:.1f}/100 severity, {package.confidence_0_100:.1f}/100 confidence)",
         f"Sample: {package.category} / {package.defect_label} / {package.sample_id}",
         f"Raw anomaly score: {package.raw_score:.6f}",
+        f"Global descriptor score: {package.global_descriptor_score:.6f}",
         f"Dominant region: centroid=({centroid[0]:.1f}, {centroid[1]:.1f}), bbox={bbox}, affected_area={package.affected_area_pct:.2f}%",
         "Observations:",
     ]
