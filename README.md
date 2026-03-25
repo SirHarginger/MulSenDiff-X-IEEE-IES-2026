@@ -112,11 +112,23 @@ python scripts/summarize_training_runs.py --write-csv runs/category_training_sum
 
 The current app is a **paired-sample inspection demo**. It is RGB-led, but the backend still resolves uploads to known paired samples so the multimodal detector can use its calibrated evidence path.
 
-Set Gemini environment variables if live explanations are needed:
+To enable live Gemini explanations:
+
+1. Go to `https://aistudio.google.com/app/apikey`
+2. Sign in with your Google account
+3. Click `Create API key`
+4. Set the key in your terminal
 
 ```bash
 export GOOGLE_API_KEY="your_key_here"
 export GEMINI_MODEL="gemini-2.5-flash"
+```
+
+Keep the key private and never commit it to git.
+
+Then run:
+
+```bash
 python scripts/run_app.py
 ```
 
