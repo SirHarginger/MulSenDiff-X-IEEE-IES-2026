@@ -4,7 +4,7 @@ import csv
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, Iterator, List, Sequence
+from typing import Any, Dict, Iterable, Iterator, List, Mapping, Sequence
 
 import torch
 import torch.nn.functional as F
@@ -83,6 +83,22 @@ class RGBNormalizationStats:
 
 
 @dataclass(frozen=True)
+class GlobalVectorNormalizationStats:
+    category: str
+    feature_names: tuple[str, ...]
+    mean: tuple[float, ...]
+    std: tuple[float, ...]
+    sample_count: int
+
+    def to_dict(self) -> Dict[str, Any]:
+        payload = asdict(self)
+        payload["feature_names"] = list(self.feature_names)
+        payload["mean"] = list(self.mean)
+        payload["std"] = list(self.std)
+        return payload
+
+
+@dataclass(frozen=True)
 class DescriptorConditioning:
     descriptor_maps: torch.Tensor
     support_maps: torch.Tensor
@@ -94,6 +110,7 @@ class ModelSample:
     x_rgb: torch.Tensor
     conditioning: DescriptorConditioning
     category: str
+    category_index: int
     split: str
     defect_label: str
     sample_id: str
@@ -118,6 +135,21 @@ class ObjectCropConfig:
     brightness_threshold: float = 0.02
     pc_density_threshold: float = 0.05
     min_mask_pixels: int = 16
+
+
+def _normalize_category_list(
+    categories: Sequence[str] | None,
+    *,
+    samples_root: Path,
+) -> list[str]:
+    available = sorted({row.category for row in iter_processed_sample_manifest(samples_root)})
+    requested = [item.strip() for item in (categories or []) if str(item).strip()]
+    if not requested:
+        return available
+    if len(requested) == 1 and requested[0].lower() == "all":
+        return available
+    requested_set = set(requested)
+    return [category for category in available if category in requested_set]
 
 
 def _bool_from_string(value: str | bool | None) -> bool:
@@ -257,13 +289,7 @@ def _load_global_stats(path: Path | str | None) -> tuple[torch.Tensor, torch.Ten
     return torch.tensor(means, dtype=torch.float32), torch.tensor(stds, dtype=torch.float32)
 
 
-def _load_rgb_normalization_stats(path: Path | str | None) -> RGBNormalizationStats | None:
-    if path is None:
-        return None
-    stats_path = Path(path)
-    if not stats_path.exists():
-        return None
-    payload = _read_json(stats_path)
+def _coerce_rgb_normalization_stats_payload(payload: Mapping[str, object]) -> RGBNormalizationStats:
     return RGBNormalizationStats(
         category=str(payload.get("category", "")),
         mode=str(payload.get("mode", "none")),
@@ -273,12 +299,91 @@ def _load_rgb_normalization_stats(path: Path | str | None) -> RGBNormalizationSt
     )
 
 
+def _coerce_global_vector_normalization_stats_payload(
+    payload: Mapping[str, object],
+) -> GlobalVectorNormalizationStats:
+    feature_names = tuple(str(value) for value in payload.get("feature_names", GLOBAL_FEATURE_NAMES))
+    mean = tuple(float(value) for value in payload.get("mean", [0.0] * len(feature_names)))
+    std = tuple(max(float(value), 1e-6) for value in payload.get("std", [1.0] * len(feature_names)))
+    return GlobalVectorNormalizationStats(
+        category=str(payload.get("category", "")),
+        feature_names=feature_names,
+        mean=mean,
+        std=std,
+        sample_count=int(payload.get("sample_count", 0)),
+    )
+
+
+def _load_rgb_normalization_stats(path: Path | str | None) -> RGBNormalizationStats | None:
+    if path is None:
+        return None
+    stats_path = Path(path)
+    if not stats_path.exists():
+        return None
+    payload = _read_json(stats_path)
+    if str(payload.get("mode", "")).lower() == "per_category" and isinstance(payload.get("categories"), dict):
+        raise ValueError("Expected single-category RGB normalization stats, found per-category payload.")
+    return _coerce_rgb_normalization_stats_payload(payload)
+
+
+def _load_rgb_normalization_stats_by_category(
+    path: Path | str | None,
+) -> Dict[str, RGBNormalizationStats] | None:
+    if path is None:
+        return None
+    stats_path = Path(path)
+    if not stats_path.exists():
+        return None
+    payload = _read_json(stats_path)
+    if isinstance(payload.get("categories"), dict):
+        return {
+            str(category): _coerce_rgb_normalization_stats_payload(stats_payload)
+            for category, stats_payload in payload["categories"].items()
+            if isinstance(stats_payload, dict)
+        }
+    stats = _coerce_rgb_normalization_stats_payload(payload)
+    return {stats.category: stats} if stats.category else None
+
+
+def _load_global_vector_normalization_stats_by_category(
+    path: Path | str | None,
+) -> Dict[str, GlobalVectorNormalizationStats] | None:
+    if path is None:
+        return None
+    stats_path = Path(path)
+    if not stats_path.exists():
+        return None
+    payload = _read_json(stats_path)
+    if isinstance(payload.get("categories"), dict):
+        return {
+            str(category): _coerce_global_vector_normalization_stats_payload(stats_payload)
+            for category, stats_payload in payload["categories"].items()
+            if isinstance(stats_payload, dict)
+        }
+    stats = _coerce_global_vector_normalization_stats_payload(payload)
+    return {stats.category: stats} if stats.category else None
+
+
 def _normalize_rgb(rgb: torch.Tensor, stats: RGBNormalizationStats | None) -> torch.Tensor:
     if stats is None or stats.mode == "none":
         return rgb
     mean = torch.tensor(stats.mean, dtype=rgb.dtype, device=rgb.device).view(3, 1, 1)
     std = torch.tensor(stats.std, dtype=rgb.dtype, device=rgb.device).view(3, 1, 1)
     return (rgb - mean) / std.clamp_min(1e-6)
+
+
+def _normalize_global_vector(
+    vector: torch.Tensor,
+    stats: GlobalVectorNormalizationStats | None,
+    *,
+    fallback_means: torch.Tensor,
+    fallback_stds: torch.Tensor,
+) -> torch.Tensor:
+    if stats is None:
+        return (vector - fallback_means) / fallback_stds.clamp_min(1e-6)
+    mean = torch.tensor(stats.mean, dtype=vector.dtype, device=vector.device)
+    std = torch.tensor(stats.std, dtype=vector.dtype, device=vector.device)
+    return (vector - mean) / std.clamp_min(1e-6)
 
 
 def _sample_is_complete(sample_dir: Path) -> bool:
@@ -308,6 +413,62 @@ def iter_processed_sample_manifest(samples_root: Path | str) -> Iterator[Process
         )
 
 
+def select_processed_sample_records(
+    *,
+    data_root: Path | str = "data",
+    categories: Sequence[str] | None = None,
+) -> List[ProcessedSampleRecord]:
+    data_root = Path(data_root)
+    samples_root = data_root / "processed" / "samples"
+    selected_categories = set(_normalize_category_list(categories, samples_root=samples_root))
+    rows = list(iter_processed_sample_manifest(samples_root))
+    if not selected_categories:
+        return rows
+    return [row for row in rows if row.category in selected_categories]
+
+
+def build_runtime_training_manifests(
+    *,
+    data_root: Path | str = "data",
+    categories: Sequence[str] | None = None,
+    manifests_root: Path | str | None = None,
+) -> Dict[str, object]:
+    data_root = Path(data_root)
+    samples_root = data_root / "processed" / "samples"
+    selected_categories = _normalize_category_list(categories, samples_root=samples_root)
+    rows = select_processed_sample_records(data_root=data_root, categories=selected_categories)
+    train_rows = [row for row in rows if row.split == "train" and not row.is_anomalous]
+    eval_rows = [row for row in rows if row.split == "test"]
+
+    resolved_manifests_root = Path(manifests_root) if manifests_root is not None else data_root / "splits"
+    resolved_manifests_root.mkdir(parents=True, exist_ok=True)
+    train_csv = resolved_manifests_root / "train_manifest.csv"
+    eval_csv = resolved_manifests_root / "eval_manifest.csv"
+    _write_manifest_csv(train_csv, train_rows)
+    _write_manifest_csv(eval_csv, eval_rows)
+
+    global_stats_json = data_root / "processed" / "manifests" / "global_feature_stats.json"
+    summary = {
+        "categories": selected_categories,
+        "train_manifest_csv": str(train_csv),
+        "eval_manifest_csv": str(eval_csv),
+        "global_stats_json": str(global_stats_json),
+        "train_records": len(train_rows),
+        "eval_records": len(eval_rows),
+    }
+    summary_json = resolved_manifests_root / "manifest_summary.json"
+    summary_json.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
+    return {
+        "train_csv": train_csv,
+        "eval_csv": eval_csv,
+        "global_stats_json": global_stats_json,
+        "summary_json": summary_json,
+        "train_rows": train_rows,
+        "eval_rows": eval_rows,
+        "selected_categories": selected_categories,
+    }
+
+
 def build_training_manifests(
     descriptor_index_csv: Path | str | None = None,
     *,
@@ -315,43 +476,16 @@ def build_training_manifests(
     categories: Sequence[str] | None = None,
 ) -> Dict[str, Path]:
     del descriptor_index_csv
-    data_root = Path(data_root)
-    samples_root = data_root / "processed" / "samples"
-    splits_root = data_root / "splits"
-    splits_root.mkdir(parents=True, exist_ok=True)
-
-    selected = {item for item in (categories or []) if item}
-    rows = [
-        row
-        for row in iter_processed_sample_manifest(samples_root)
-        if not selected or row.category in selected
-    ]
-    train_rows = [row for row in rows if row.split == "train" and not row.is_anomalous]
-    eval_rows = [row for row in rows if row.split == "test"]
-
-    train_csv = splits_root / "train_manifest.csv"
-    eval_csv = splits_root / "eval_manifest.csv"
-    _write_manifest_csv(train_csv, train_rows)
-    _write_manifest_csv(eval_csv, eval_rows)
-
-    global_stats_json = data_root / "processed" / "manifests" / "global_feature_stats.json"
-    summary = {
-        "categories": sorted(selected) if selected else sorted({row.category for row in rows}),
-        "train_manifest_csv": str(train_csv),
-        "eval_manifest_csv": str(eval_csv),
-        "global_stats_json": str(global_stats_json),
-        "train_records": len(train_rows),
-        "eval_records": len(eval_rows),
-    }
-    (splits_root / "manifest_summary.json").write_text(
-        json.dumps(summary, indent=2, sort_keys=True),
-        encoding="utf-8",
+    payload = build_runtime_training_manifests(
+        data_root=data_root,
+        categories=categories,
+        manifests_root=Path(data_root) / "splits",
     )
     return {
-        "train_csv": train_csv,
-        "eval_csv": eval_csv,
-        "global_stats_json": global_stats_json,
-        "summary_json": splits_root / "manifest_summary.json",
+        "train_csv": payload["train_csv"],  # type: ignore[return-value]
+        "eval_csv": payload["eval_csv"],  # type: ignore[return-value]
+        "global_stats_json": payload["global_stats_json"],  # type: ignore[return-value]
+        "summary_json": payload["summary_json"],  # type: ignore[return-value]
     }
 
 
@@ -390,6 +524,9 @@ class DescriptorConditioningDataset(Dataset[ModelSample]):
         object_crop_mask_source: str = "rgb_then_pc_density",
         rgb_normalization_mode: str = "none",
         rgb_normalization_stats_path: Path | str | None = None,
+        rgb_normalization_stats_by_category_path: Path | str | None = None,
+        global_vector_normalization_stats_path: Path | str | None = None,
+        category_vocabulary: Sequence[str] | None = None,
     ) -> None:
         self.manifest_csv = Path(manifest_csv)
         self.data_root = Path(data_root)
@@ -402,10 +539,19 @@ class DescriptorConditioningDataset(Dataset[ModelSample]):
         )
         self.rgb_normalization_mode = rgb_normalization_mode
         self.rgb_normalization_stats = _load_rgb_normalization_stats(rgb_normalization_stats_path)
+        self.rgb_normalization_stats_by_category = _load_rgb_normalization_stats_by_category(
+            rgb_normalization_stats_by_category_path
+        )
+        self.global_vector_normalization_stats_by_category = _load_global_vector_normalization_stats_by_category(
+            global_vector_normalization_stats_path
+        )
         self.records = self._read_manifest_rows(self.manifest_csv)
         self.descriptor_channels = len(SPATIAL_DESCRIPTOR_ORDER)
         self.support_channels = len(SUPPORT_DESCRIPTOR_ORDER)
         self.global_dim = len(GLOBAL_FEATURE_NAMES)
+        resolved_vocabulary = list(category_vocabulary or sorted({row["category"] for row in self.records}))
+        self.category_vocabulary = tuple(resolved_vocabulary)
+        self.category_to_index = {category: index for index, category in enumerate(self.category_vocabulary)}
 
     def __len__(self) -> int:
         return len(self.records)
@@ -430,17 +576,28 @@ class DescriptorConditioningDataset(Dataset[ModelSample]):
         rgb = _resize_tensor(_crop_tensor(rgb_raw, crop_box), self.target_size)
         descriptor_maps = _resize_tensor(_crop_tensor(descriptor_raw, crop_box), self.target_size)
         support_maps = _resize_tensor(_crop_tensor(support_raw, crop_box), self.target_size)
-        rgb = _normalize_rgb(
-            rgb,
-            self.rgb_normalization_stats if self.rgb_normalization_mode != "none" else None,
-        )
+        resolved_rgb_stats = None
+        if self.rgb_normalization_mode != "none":
+            resolved_rgb_stats = (
+                (self.rgb_normalization_stats_by_category or {}).get(row["category"])
+                if self.rgb_normalization_stats_by_category
+                else self.rgb_normalization_stats
+            )
+        rgb = _normalize_rgb(rgb, resolved_rgb_stats)
 
         global_payload = _read_json(sample_dir / "global.json")
         global_vector = torch.tensor(
             [float(global_payload.get(name, 0.0)) for name in GLOBAL_FEATURE_NAMES],
             dtype=torch.float32,
         )
-        global_vector = (global_vector - self.global_means) / self.global_stds.clamp_min(1e-6)
+        global_vector = _normalize_global_vector(
+            global_vector,
+            (self.global_vector_normalization_stats_by_category or {}).get(row["category"])
+            if self.global_vector_normalization_stats_by_category
+            else None,
+            fallback_means=self.global_means,
+            fallback_stds=self.global_stds,
+        )
 
         return ModelSample(
             x_rgb=rgb,
@@ -450,6 +607,7 @@ class DescriptorConditioningDataset(Dataset[ModelSample]):
                 global_vector=global_vector,
             ),
             category=row["category"],
+            category_index=self.category_to_index.get(row["category"], 0),
             split=row["split"],
             defect_label=row["defect_label"],
             sample_id=row["sample_id"],
@@ -468,6 +626,20 @@ class DescriptorConditioningDataset(Dataset[ModelSample]):
 
     def set_rgb_normalization_stats(self, stats: RGBNormalizationStats | None) -> None:
         self.rgb_normalization_stats = stats
+
+    def set_rgb_normalization_stats_by_category(
+        self,
+        stats_by_category: Mapping[str, RGBNormalizationStats] | None,
+    ) -> None:
+        self.rgb_normalization_stats_by_category = dict(stats_by_category) if stats_by_category is not None else None
+
+    def set_global_vector_normalization_stats_by_category(
+        self,
+        stats_by_category: Mapping[str, GlobalVectorNormalizationStats] | None,
+    ) -> None:
+        self.global_vector_normalization_stats_by_category = (
+            dict(stats_by_category) if stats_by_category is not None else None
+        )
 
     @staticmethod
     def _read_manifest_rows(path: Path) -> List[Dict[str, str]]:
@@ -511,10 +683,119 @@ def compute_masked_rgb_normalization_stats(
     )
 
 
+def compute_masked_rgb_normalization_stats_by_category(
+    dataset: DescriptorConditioningDataset,
+) -> Dict[str, RGBNormalizationStats]:
+    channel_sum: Dict[str, torch.Tensor] = {}
+    channel_sum_sq: Dict[str, torch.Tensor] = {}
+    masked_pixels: Dict[str, int] = {}
+
+    for index in range(len(dataset)):
+        sample = dataset[index]
+        category = sample.category
+        object_mask = estimate_object_mask_from_sample(
+            sample.x_rgb,
+            sample.conditioning.support_maps,
+            crop_config=dataset.crop_config,
+        )
+        region = object_mask.squeeze(0) > 0
+        values = sample.x_rgb[:, region] if region.any() else sample.x_rgb.view(3, -1)
+        channel_sum.setdefault(category, torch.zeros(3, dtype=torch.float64))
+        channel_sum_sq.setdefault(category, torch.zeros(3, dtype=torch.float64))
+        masked_pixels.setdefault(category, 0)
+        channel_sum[category] += values.sum(dim=1, dtype=torch.float64)
+        channel_sum_sq[category] += (values.double() ** 2).sum(dim=1)
+        masked_pixels[category] += int(values.shape[1])
+
+    stats_by_category: Dict[str, RGBNormalizationStats] = {}
+    for category in sorted(channel_sum):
+        pixel_count = masked_pixels.get(category, 0)
+        if pixel_count <= 0:
+            mean = torch.zeros(3, dtype=torch.float64)
+            std = torch.ones(3, dtype=torch.float64)
+        else:
+            mean = channel_sum[category] / pixel_count
+            variance = (channel_sum_sq[category] / pixel_count) - mean.square()
+            std = variance.clamp_min(1e-6).sqrt()
+        stats_by_category[category] = RGBNormalizationStats(
+            category=category,
+            mode=dataset.rgb_normalization_mode,
+            mean=tuple(float(value) for value in mean.tolist()),
+            std=tuple(float(value) for value in std.tolist()),
+            masked_pixels=pixel_count,
+        )
+    return stats_by_category
+
+
 def save_rgb_normalization_stats(stats: RGBNormalizationStats, path: Path | str) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(stats.to_dict(), indent=2, sort_keys=True), encoding="utf-8")
+    return path
+
+
+def save_rgb_normalization_stats_by_category(
+    stats_by_category: Mapping[str, RGBNormalizationStats],
+    path: Path | str,
+) -> Path:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "mode": "per_category",
+        "categories": {
+            category: stats.to_dict()
+            for category, stats in sorted(stats_by_category.items())
+        },
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    return path
+
+
+def compute_global_vector_normalization_stats_by_category(
+    rows: Sequence[ProcessedSampleRecord],
+    *,
+    data_root: Path | str = ".",
+) -> Dict[str, GlobalVectorNormalizationStats]:
+    data_root = Path(data_root)
+    grouped: Dict[str, List[torch.Tensor]] = {}
+    for row in rows:
+        sample_dir = data_root / row.sample_dir
+        global_payload = _read_json(sample_dir / "global.json")
+        grouped.setdefault(row.category, []).append(
+            torch.tensor(
+                [float(global_payload.get(name, 0.0)) for name in GLOBAL_FEATURE_NAMES],
+                dtype=torch.float64,
+            )
+        )
+    stats_by_category: Dict[str, GlobalVectorNormalizationStats] = {}
+    for category, vectors in sorted(grouped.items()):
+        stacked = torch.stack(vectors, dim=0) if vectors else torch.zeros((1, len(GLOBAL_FEATURE_NAMES)), dtype=torch.float64)
+        mean = stacked.mean(dim=0)
+        std = stacked.std(dim=0, unbiased=False).clamp_min(1e-6)
+        stats_by_category[category] = GlobalVectorNormalizationStats(
+            category=category,
+            feature_names=tuple(GLOBAL_FEATURE_NAMES),
+            mean=tuple(float(value) for value in mean.tolist()),
+            std=tuple(float(value) for value in std.tolist()),
+            sample_count=int(stacked.shape[0]),
+        )
+    return stats_by_category
+
+
+def save_global_vector_normalization_stats_by_category(
+    stats_by_category: Mapping[str, GlobalVectorNormalizationStats],
+    path: Path | str,
+) -> Path:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "mode": "per_category",
+        "categories": {
+            category: stats.to_dict()
+            for category, stats in sorted(stats_by_category.items())
+        },
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return path
 
 
@@ -525,6 +806,7 @@ def collate_model_samples(samples: Sequence[ModelSample]) -> Dict[str, object]:
         "support_maps": torch.stack([sample.conditioning.support_maps for sample in samples], dim=0),
         "global_vectors": torch.stack([sample.conditioning.global_vector for sample in samples], dim=0),
         "categories": [sample.category for sample in samples],
+        "category_indices": torch.tensor([sample.category_index for sample in samples], dtype=torch.long),
         "defect_labels": [sample.defect_label for sample in samples],
         "sample_ids": [sample.sample_id for sample in samples],
         "sample_names": [sample.sample_name for sample in samples],
@@ -551,6 +833,8 @@ def validate_model_sample(sample: ModelSample) -> List[str]:
         issues.append("support_channel_count_mismatch")
     if sample.conditioning.global_vector.shape[0] != len(GLOBAL_FEATURE_NAMES):
         issues.append("global_vector_dim_mismatch")
+    if sample.category_index < 0:
+        issues.append("category_index_negative")
     for name, tensor in {
         "x_rgb": sample.x_rgb,
         "descriptor_maps": sample.conditioning.descriptor_maps,

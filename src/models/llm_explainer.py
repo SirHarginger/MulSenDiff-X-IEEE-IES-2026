@@ -80,7 +80,7 @@ def build_llm_explanation(
     )
 
     metadata = {
-        "engine": "provider_agnostic_rule_backend",
+        "engine": "internal_rule_debug_backend",
         "context_items": str(len(context_items)),
         "prompt_sections": str(len((prompt_payload or {}).get("required_sections", []))),
     }

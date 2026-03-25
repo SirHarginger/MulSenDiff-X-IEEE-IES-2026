@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
 
 import torch
 
-from src.data_loader import SPATIAL_DESCRIPTOR_ORDER
+from src.data_loader import SPATIAL_DESCRIPTOR_ORDER, SUPPORT_DESCRIPTOR_ORDER
 from src.inference.quantification import MasiCalibration, MasiQuantification, quantify_masi
 
 
@@ -33,8 +33,10 @@ class EvidencePackage:
     cross_modal_support: List[str]
     evidence_breakdown: Dict[str, float]
     confidence_notes: List[str]
-    retrieved_context: List[str]
-    source_paths: Dict[str, str]
+    global_descriptor_score: float
+    retrieved_context: List[Dict[str, str]] = field(default_factory=list)
+    provenance: Dict[str, Any] = field(default_factory=dict)
+    source_paths: Dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -57,7 +59,10 @@ def build_evidence_package(
     object_mask: torch.Tensor,
     predicted_mask: torch.Tensor,
     descriptor_maps: torch.Tensor,
-    source_paths: Dict[str, str],
+    support_maps: torch.Tensor,
+    global_descriptor_score: float = 0.0,
+    provenance: Dict[str, Any] | None = None,
+    source_paths: Dict[str, str] | None = None,
 ) -> EvidencePackage:
     masi = quantify_masi(
         raw_score=raw_score,
@@ -68,22 +73,28 @@ def build_evidence_package(
     )
     region_mask = _ensure_region_mask(predicted_mask, normalized_anomaly_map, object_mask)
     thermal_strength = _masked_mean(
-        _stack_named_maps(descriptor_maps, ["infrared_hotspot", "infrared_gradient_magnitude"]),
+        _stack_named_maps(descriptor_maps, ["ir_hotspot", "ir_gradient"]),
         region_mask,
     )
     geometric_strength = _masked_mean(
         _stack_named_maps(
             descriptor_maps,
-            ["pointcloud_curvature", "pointcloud_roughness", "pointcloud_normal_deviation"],
+            ["pc_curvature", "pc_roughness", "pc_normal_deviation"],
         ),
         region_mask,
     )
     agreement_strength = _masked_mean(
-        _stack_named_maps(descriptor_maps, ["crossmodal_agreement", "crossmodal_geometric_support"]),
+        torch.stack(
+            [
+                descriptor_maps[SPATIAL_DESCRIPTOR_ORDER.index("cross_agreement")],
+                support_maps[SUPPORT_DESCRIPTOR_ORDER.index("cross_geo_support")],
+            ],
+            dim=0,
+        ),
         region_mask,
     )
     inconsistency_strength = _masked_mean(
-        _stack_named_maps(descriptor_maps, ["crossmodal_inconsistency"]),
+        _stack_named_support_maps(support_maps, ["cross_inconsistency"]),
         region_mask,
     )
     score_basis_strength = _masked_mean(score_basis_map, region_mask)
@@ -95,6 +106,7 @@ def build_evidence_package(
             "thermal_pct": thermal_strength,
             "geometric_pct": geometric_strength,
             "crossmodal_pct": max(agreement_strength + support_strength - inconsistency_strength, 0.0),
+            "global_descriptor_pct": max(float(global_descriptor_score), 0.0),
         }
     )
 
@@ -102,6 +114,7 @@ def build_evidence_package(
         quantification=masi,
         agreement_strength=agreement_strength,
         inconsistency_strength=inconsistency_strength,
+        global_descriptor_score=global_descriptor_score,
     )
 
     return EvidencePackage(
@@ -144,8 +157,9 @@ def build_evidence_package(
         ],
         evidence_breakdown=evidence_breakdown,
         confidence_notes=confidence_notes,
-        retrieved_context=[],
-        source_paths=source_paths,
+        global_descriptor_score=float(global_descriptor_score),
+        provenance=provenance or {},
+        source_paths=source_paths or {},
     )
 
 
@@ -158,6 +172,11 @@ def save_evidence_package(package: EvidencePackage, path: Path | str) -> Path:
 
 def _stack_named_maps(descriptor_maps: torch.Tensor, names: List[str]) -> torch.Tensor:
     channels = [descriptor_maps[SPATIAL_DESCRIPTOR_ORDER.index(name)] for name in names]
+    return torch.stack(channels, dim=0)
+
+
+def _stack_named_support_maps(support_maps: torch.Tensor, names: List[str]) -> torch.Tensor:
+    channels = [support_maps[SUPPORT_DESCRIPTOR_ORDER.index(name)] for name in names]
     return torch.stack(channels, dim=0)
 
 
@@ -237,6 +256,7 @@ def _build_confidence_notes(
     quantification: MasiQuantification,
     agreement_strength: float,
     inconsistency_strength: float,
+    global_descriptor_score: float,
 ) -> List[str]:
     notes = [f"Severity band: {quantification.status} ({quantification.severity_0_100:.1f}/100)."]
     if quantification.confidence_0_100 < 35.0:
@@ -247,7 +267,9 @@ def _build_confidence_notes(
     if quantification.affected_area_pct < 1.0:
         notes.append("The predicted anomalous region is very small, so localisation should be interpreted cautiously.")
     if agreement_strength < inconsistency_strength:
-        notes.append("Sensor agreement is weaker than inconsistency in the dominant region.")
-    else:
-        notes.append("Sensor agreement supports the dominant region more than inconsistency.")
+        notes.append("Cross-modal evidence is mixed, so the explanation should emphasize uncertainty.")
+    if global_descriptor_score > 0.5:
+        notes.append(
+            f"Sample-level global descriptor deviation is elevated ({global_descriptor_score:.3f}), reinforcing the anomaly hypothesis."
+        )
     return notes

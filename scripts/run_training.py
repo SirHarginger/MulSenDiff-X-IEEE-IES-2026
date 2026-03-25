@@ -151,6 +151,13 @@ def main() -> None:
         score_weight_schedule=inference_cfg.get("score_weight_schedule"),
         pixel_threshold_percentile=args.pixel_threshold_percentile or float(inference_cfg.get("pixel_threshold_percentile", 0.9)),
         object_mask_threshold=args.object_mask_threshold or float(inference_cfg.get("object_mask_threshold", 0.02)),
+        localization_quantile=float(inference_cfg.get("localization_quantile", 0.995)),
+        localization_min_region_area_fraction=float(
+            inference_cfg.get("localization_min_region_area_fraction", 0.002)
+        ),
+        localization_min_region_pixels_floor=int(
+            inference_cfg.get("localization_min_region_pixels_floor", 4)
+        ),
         object_crop_enabled=coerce_bool_arg(
             args.object_crop_enabled,
             bool(data_cfg.get("object_crop_enabled", False)),

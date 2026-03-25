@@ -48,7 +48,14 @@ from src.inference.global_descriptor_scoring import (
     GlobalDescriptorCalibration,
     fit_global_descriptor_calibration,
 )
-from src.inference.localization import estimate_object_mask, normalize_anomaly_map, threshold_anomaly_map
+from src.inference.localization import (
+    LocalizationCalibration,
+    apply_localization_calibration,
+    estimate_object_mask,
+    fit_localization_calibration,
+    normalize_anomaly_map,
+    threshold_anomaly_map,
+)
 from src.inference.quantification import MasiCalibration, fit_masi_calibration
 from src.models.llm_explainer import (
     build_llm_explanation,
@@ -546,6 +553,17 @@ def _resolve_rgb_stats_for_category(
     return rgb_normalization_stats
 
 
+def _resolve_localization_calibration_for_category(
+    category: str,
+    *,
+    localization_calibration: LocalizationCalibration | None = None,
+    localization_calibration_by_category: Dict[str, LocalizationCalibration] | None = None,
+) -> LocalizationCalibration | None:
+    if localization_calibration_by_category is not None:
+        return localization_calibration_by_category.get(category)
+    return localization_calibration
+
+
 def build_diffusion_dataloaders(
     *,
     data_root: Path | str = "data",
@@ -903,10 +921,11 @@ def run_eval_scoring(
     image_score_data_path: Path | None = None,
     evidence_dir: Path | None = None,
     calibration: MasiCalibration | Dict[str, MasiCalibration] | None = None,
+    localization_calibration: LocalizationCalibration | Dict[str, LocalizationCalibration] | None = None,
     max_visualizations: int = 6,
     knowledge_base_root: Path | None = None,
     retrieval_top_k: int = 3,
-    enable_llm_explanations: bool = True,
+    enable_llm_explanations: bool = False,
     rgb_normalization_stats: RGBNormalizationStats | None = None,
     rgb_normalization_stats_by_category: Dict[str, RGBNormalizationStats] | None = None,
     preview_seed: int | None = None,
@@ -972,14 +991,38 @@ def run_eval_scoring(
         labels = torch.tensor([1 if value else 0 for value in batch.is_anomalous], dtype=torch.float32)
         image_labels.append(labels)
 
-        normalized_maps = normalize_anomaly_map(scored.anomaly_map.detach().cpu())
+        raw_anomaly_maps = scored.anomaly_map.detach().cpu()
+        normalized_maps = normalize_anomaly_map(raw_anomaly_maps)
         object_masks = scored.object_mask.detach().cpu()
-        predicted_masks = threshold_anomaly_map(
-            normalized_maps,
-            percentile=pixel_threshold_percentile,
-            object_mask=object_masks,
-            normalized=True,
-        )
+        predicted_mask_rows: List[torch.Tensor] = []
+        for sample_offset, category_name in enumerate(batch.categories):
+            sample_raw_map = raw_anomaly_maps[sample_offset : sample_offset + 1]
+            sample_normalized_map = normalized_maps[sample_offset : sample_offset + 1]
+            sample_object_mask = object_masks[sample_offset : sample_offset + 1]
+            sample_localization_calibration = (
+                localization_calibration.get(category_name)
+                if isinstance(localization_calibration, dict)
+                else localization_calibration
+            )
+            if sample_localization_calibration is not None:
+                predicted_mask_rows.append(
+                    apply_localization_calibration(
+                        sample_raw_map,
+                        object_mask=sample_object_mask,
+                        calibration=sample_localization_calibration,
+                        normalized=False,
+                    )
+                )
+            else:
+                predicted_mask_rows.append(
+                    threshold_anomaly_map(
+                        sample_normalized_map,
+                        percentile=pixel_threshold_percentile,
+                        object_mask=sample_object_mask,
+                        normalized=True,
+                    )
+                )
+        predicted_masks = torch.cat(predicted_mask_rows, dim=0)
 
         for sample_offset, sample_id in enumerate(batch.sample_ids):
             gt_mask = load_gt_mask(
@@ -1099,6 +1142,20 @@ def run_eval_scoring(
                         ),
                         "lambda_descriptor_global": float(
                             lambda_descriptor_global if lambda_descriptor_global is not None else global_descriptor_weight
+                        ),
+                        "localization_method": (
+                            "per_category_calibrated_threshold"
+                            if _resolve_localization_calibration_for_category(
+                                batch.categories[sample_offset],
+                                localization_calibration=localization_calibration
+                                if isinstance(localization_calibration, LocalizationCalibration)
+                                else None,
+                                localization_calibration_by_category=localization_calibration
+                                if isinstance(localization_calibration, dict)
+                                else None,
+                            )
+                            is not None
+                            else "percentile_threshold_fallback"
                         ),
                     },
                     source_paths={
@@ -1523,6 +1580,9 @@ def train_model(
     score_weight_schedule: Dict[str, object] | None = None,
     pixel_threshold_percentile: float = 0.9,
     object_mask_threshold: float = 0.02,
+    localization_quantile: float = 0.995,
+    localization_min_region_area_fraction: float = 0.002,
+    localization_min_region_pixels_floor: int = 4,
     output_root: Path | str = "runs",
     run_name: str | None = None,
     max_train_batches: int = 0,
@@ -1663,6 +1723,35 @@ def train_model(
                 for category_name, calibration in sorted(global_descriptor_calibration.items())
             },
         )
+        localization_calibration = fit_localization_reference_by_category(
+            model,
+            loaders["train_reference_loader"],  # type: ignore[arg-type]
+            device=torch_device,
+            score_mode=score_mode,
+            anomaly_timestep=anomaly_timestep,
+            descriptor_weight=descriptor_weight,
+            global_descriptor_weight=global_descriptor_weight,
+            multi_timestep_scoring_enabled=multi_timestep_scoring_enabled,
+            multi_timestep_fractions=multi_timestep_fractions,
+            anomaly_map_gaussian_sigma=anomaly_map_gaussian_sigma,
+            lambda_residual=lambda_residual,
+            lambda_noise=lambda_noise,
+            lambda_descriptor_spatial=lambda_descriptor_spatial,
+            lambda_descriptor_global=lambda_descriptor_global,
+            global_descriptor_calibration=global_descriptor_calibration,
+            object_mask_threshold=object_mask_threshold,
+            localization_quantile=localization_quantile,
+            localization_min_region_area_fraction=localization_min_region_area_fraction,
+            localization_min_region_pixels_floor=localization_min_region_pixels_floor,
+            seed=seed + 4000,
+        )
+        localization_calibration_path = write_json(
+            run_paths.metrics / "localization_calibration.json",
+            {
+                category_name: calibration.to_dict()
+                for category_name, calibration in sorted(localization_calibration.items())
+            },
+        )
     else:
         global_descriptor_calibration = fit_global_descriptor_reference(
             loaders["train_reference_loader"],  # type: ignore[arg-type]
@@ -1671,6 +1760,34 @@ def train_model(
         global_descriptor_calibration_path = write_json(
             run_paths.metrics / "global_descriptor_calibration.json",
             global_descriptor_calibration.to_dict(),
+        )
+        localization_calibration_map = fit_localization_reference_by_category(
+            model,
+            loaders["train_reference_loader"],  # type: ignore[arg-type]
+            device=torch_device,
+            score_mode=score_mode,
+            anomaly_timestep=anomaly_timestep,
+            descriptor_weight=descriptor_weight,
+            global_descriptor_weight=global_descriptor_weight,
+            multi_timestep_scoring_enabled=multi_timestep_scoring_enabled,
+            multi_timestep_fractions=multi_timestep_fractions,
+            anomaly_map_gaussian_sigma=anomaly_map_gaussian_sigma,
+            lambda_residual=lambda_residual,
+            lambda_noise=lambda_noise,
+            lambda_descriptor_spatial=lambda_descriptor_spatial,
+            lambda_descriptor_global=lambda_descriptor_global,
+            global_descriptor_calibration=global_descriptor_calibration,
+            object_mask_threshold=object_mask_threshold,
+            localization_quantile=localization_quantile,
+            localization_min_region_area_fraction=localization_min_region_area_fraction,
+            localization_min_region_pixels_floor=localization_min_region_pixels_floor,
+            seed=seed + 4000,
+        )
+        selected_localization_category = category_vocabulary[0] if category_vocabulary else category
+        localization_calibration = localization_calibration_map[selected_localization_category]
+        localization_calibration_path = write_json(
+            run_paths.metrics / "localization_calibration.json",
+            localization_calibration.to_dict(),
         )
 
     config_payload = {
@@ -1701,6 +1818,9 @@ def train_model(
         "score_weight_schedule": score_weight_schedule,
         "pixel_threshold_percentile": pixel_threshold_percentile,
         "object_mask_threshold": object_mask_threshold,
+        "localization_quantile": localization_quantile,
+        "localization_min_region_area_fraction": localization_min_region_area_fraction,
+        "localization_min_region_pixels_floor": localization_min_region_pixels_floor,
         "object_crop_enabled": object_crop_enabled,
         "object_crop_margin_ratio": object_crop_margin_ratio,
         "object_crop_mask_source": object_crop_mask_source,
@@ -1721,6 +1841,7 @@ def train_model(
         if global_vector_stats_by_category is not None
         else None,
         "global_vector_normalization_stats_by_category_path": global_vector_stats_by_category_path,
+        "localization_calibration_path": str(localization_calibration_path),
         "training_protocol": "train_good_only",
         "evaluation_protocol": "test_good_plus_anomaly",
         "train_manifest_csv": str(manifests["train_csv"]),
@@ -1829,6 +1950,7 @@ def train_model(
             preview_selection_path=run_paths.metrics / "preview_selection.json",
             max_visualizations=max_visualizations,
             enable_llm_explanations=False,
+            localization_calibration=localization_calibration,
             rgb_normalization_stats=rgb_stats,
             rgb_normalization_stats_by_category=rgb_stats_by_category,
             preview_seed=seed,
@@ -1961,6 +2083,7 @@ def train_model(
         "best_checkpoint": str(best_checkpoint_path) if best_checkpoint_path else "",
         "history_rows": len(history),
         "global_descriptor_calibration_path": str(global_descriptor_calibration_path),
+        "localization_calibration_path": str(localization_calibration_path),
         "preview_selection_path": str(run_paths.metrics / "preview_selection.json") if joint_mode else "",
         **provenance,
     }
@@ -1997,13 +2120,16 @@ def evaluate_checkpoint(
     lambda_descriptor_global: float | None = None,
     pixel_threshold_percentile: float = 0.9,
     object_mask_threshold: float = 0.02,
+    localization_quantile: float = 0.995,
+    localization_min_region_area_fraction: float = 0.002,
+    localization_min_region_pixels_floor: int = 4,
     output_root: Path | str = "runs",
     run_name: str | None = None,
     max_eval_batches: int = 0,
     max_visualizations: int = 10,
     knowledge_base_root: Path | str | None = None,
     retrieval_top_k: int = 3,
-    enable_llm_explanations: bool = True,
+    enable_llm_explanations: bool = False,
     object_crop_enabled: bool | None = None,
     object_crop_margin_ratio: float | None = None,
     object_crop_mask_source: str = "",
@@ -2120,6 +2246,21 @@ def evaluate_checkpoint(
         if anomaly_map_gaussian_sigma is not None
         else checkpoint_config.get("anomaly_map_gaussian_sigma", 0.0)
     )
+    resolved_localization_quantile = float(
+        checkpoint_config.get("localization_quantile", localization_quantile)
+    )
+    resolved_localization_min_region_area_fraction = float(
+        checkpoint_config.get(
+            "localization_min_region_area_fraction",
+            localization_min_region_area_fraction,
+        )
+    )
+    resolved_localization_min_region_pixels_floor = int(
+        checkpoint_config.get(
+            "localization_min_region_pixels_floor",
+            localization_min_region_pixels_floor,
+        )
+    )
     score_weights = resolve_score_weights(
         total_epochs=int(checkpoint_config.get("epochs", 0)),
         epoch=int(payload.get("epoch", 0)) or int(checkpoint_config.get("epochs", 0) or 0),
@@ -2164,6 +2305,35 @@ def evaluate_checkpoint(
                 for category_name, calibration in sorted(global_descriptor_calibration.items())
             },
         )
+        localization_calibration = fit_localization_reference_by_category(
+            model,
+            loaders["train_reference_loader"],  # type: ignore[arg-type]
+            device=torch_device,
+            score_mode=resolved_score_mode,
+            anomaly_timestep=anomaly_timestep,
+            descriptor_weight=descriptor_weight,
+            global_descriptor_weight=global_descriptor_weight,
+            multi_timestep_scoring_enabled=resolved_multi_timestep,
+            multi_timestep_fractions=resolved_multi_timestep_fractions,
+            anomaly_map_gaussian_sigma=resolved_anomaly_map_sigma,
+            lambda_residual=score_weights.lambda_residual,
+            lambda_noise=score_weights.lambda_noise,
+            lambda_descriptor_spatial=score_weights.lambda_descriptor_spatial,
+            lambda_descriptor_global=score_weights.lambda_descriptor_global,
+            global_descriptor_calibration=global_descriptor_calibration,
+            object_mask_threshold=object_mask_threshold,
+            localization_quantile=resolved_localization_quantile,
+            localization_min_region_area_fraction=resolved_localization_min_region_area_fraction,
+            localization_min_region_pixels_floor=resolved_localization_min_region_pixels_floor,
+            seed=seed + 2500,
+        )
+        localization_calibration_path = write_json(
+            evidence_root / "localization_calibration.json",
+            {
+                category_name: calibration.to_dict()
+                for category_name, calibration in sorted(localization_calibration.items())
+            },
+        )
         calibration_scores_by_category = collect_reference_scores_by_category(
             model,
             loaders["train_reference_loader"],  # type: ignore[arg-type]
@@ -2206,6 +2376,34 @@ def evaluate_checkpoint(
         global_descriptor_calibration_path = write_json(
             evidence_root / "global_descriptor_calibration.json",
             global_descriptor_calibration.to_dict(),
+        )
+        localization_calibration_map = fit_localization_reference_by_category(
+            model,
+            loaders["train_reference_loader"],  # type: ignore[arg-type]
+            device=torch_device,
+            score_mode=resolved_score_mode,
+            anomaly_timestep=anomaly_timestep,
+            descriptor_weight=descriptor_weight,
+            global_descriptor_weight=global_descriptor_weight,
+            multi_timestep_scoring_enabled=resolved_multi_timestep,
+            multi_timestep_fractions=resolved_multi_timestep_fractions,
+            anomaly_map_gaussian_sigma=resolved_anomaly_map_sigma,
+            lambda_residual=score_weights.lambda_residual,
+            lambda_noise=score_weights.lambda_noise,
+            lambda_descriptor_spatial=score_weights.lambda_descriptor_spatial,
+            lambda_descriptor_global=score_weights.lambda_descriptor_global,
+            global_descriptor_calibration=global_descriptor_calibration,
+            object_mask_threshold=object_mask_threshold,
+            localization_quantile=resolved_localization_quantile,
+            localization_min_region_area_fraction=resolved_localization_min_region_area_fraction,
+            localization_min_region_pixels_floor=resolved_localization_min_region_pixels_floor,
+            seed=seed + 2500,
+        )
+        selected_localization_category = selected_categories[0] if selected_categories else category
+        localization_calibration = localization_calibration_map[selected_localization_category]
+        localization_calibration_path = write_json(
+            evidence_root / "localization_calibration.json",
+            localization_calibration.to_dict(),
         )
         calibration_scores = collect_reference_scores(
             model,
@@ -2257,6 +2455,7 @@ def evaluate_checkpoint(
         image_score_data_path=run_paths.metrics / "image_score_data.json",
         evidence_dir=evidence_root,
         calibration=calibration,
+        localization_calibration=localization_calibration,
         max_visualizations=max_visualizations,
         knowledge_base_root=Path(knowledge_base_root) if knowledge_base_root else None,
         retrieval_top_k=retrieval_top_k,
@@ -2301,6 +2500,9 @@ def evaluate_checkpoint(
         "pixel_iou": eval_summary["pixel_iou"],
         "mean_good_score": eval_summary["mean_good_score"],
         "mean_anomalous_score": eval_summary["mean_anomalous_score"],
+        "localization_quantile": resolved_localization_quantile,
+        "localization_min_region_area_fraction": resolved_localization_min_region_area_fraction,
+        "localization_min_region_pixels_floor": resolved_localization_min_region_pixels_floor,
         **score_weights.to_dict(),
         "visualizations_saved": eval_summary["visualizations_saved"],
         "preview_selection_path": eval_summary.get("preview_selection_path", ""),
@@ -2310,6 +2512,7 @@ def evaluate_checkpoint(
         "llm_explanations_saved": eval_summary["llm_explanations_saved"],
         "calibration_path": str(calibration_path),
         "global_descriptor_calibration_path": str(global_descriptor_calibration_path),
+        "localization_calibration_path": str(localization_calibration_path),
         "rgb_normalization_stats_path": rgb_stats_path,
         "rgb_normalization_stats_by_category_path": rgb_stats_by_category_path,
         "evidence_index_path": eval_summary["evidence_index_path"],
@@ -2376,6 +2579,145 @@ def collect_reference_global_vectors_by_category(
     return {
         category: torch.cat(vectors, dim=0)
         for category, vectors in collected.items()
+    }
+
+
+def collect_reference_localization_measurements_by_category(
+    model: MulSenDiffX,
+    loader: DataLoader,
+    *,
+    device: torch.device,
+    score_mode: str,
+    anomaly_timestep: int,
+    descriptor_weight: float,
+    global_descriptor_weight: float,
+    multi_timestep_scoring_enabled: bool = False,
+    multi_timestep_fractions: Sequence[float] | None = None,
+    anomaly_map_gaussian_sigma: float = 0.0,
+    lambda_residual: float | None = None,
+    lambda_noise: float | None = None,
+    lambda_descriptor_spatial: float | None = None,
+    lambda_descriptor_global: float | None = None,
+    global_descriptor_calibration: GlobalDescriptorCalibration | Dict[str, GlobalDescriptorCalibration] | None = None,
+    object_mask_threshold: float = 0.02,
+    max_batches: int = 0,
+    seed: int = 29,
+) -> Dict[str, Dict[str, torch.Tensor]]:
+    generator = torch.Generator(device=device)
+    generator.manual_seed(seed)
+    collected_values: Dict[str, List[torch.Tensor]] = {}
+    collected_object_pixels: Dict[str, List[torch.Tensor]] = {}
+
+    for batch_index, raw_batch in enumerate(loader):
+        batch = prepare_diffusion_batch(raw_batch)
+        scored = score_batch(
+            model,
+            batch.x_rgb.to(device),
+            batch.M.to(device),
+            batch.S.to(device),
+            batch.g.to(device),
+            batch.category_indices.to(device),
+            categories=batch.categories,
+            score_mode=score_mode,
+            timestep=anomaly_timestep,
+            descriptor_weight=descriptor_weight,
+            global_descriptor_weight=global_descriptor_weight,
+            multi_timestep_scoring_enabled=multi_timestep_scoring_enabled,
+            multi_timestep_fractions=multi_timestep_fractions,
+            anomaly_map_gaussian_sigma=anomaly_map_gaussian_sigma,
+            lambda_residual=lambda_residual,
+            lambda_noise=lambda_noise,
+            lambda_descriptor_spatial=lambda_descriptor_spatial,
+            lambda_descriptor_global=lambda_descriptor_global,
+            global_descriptor_calibration=global_descriptor_calibration,
+            object_mask_threshold=object_mask_threshold,
+            generator=generator,
+        )
+        anomaly_maps = scored.anomaly_map.detach().cpu()
+        object_masks = scored.object_mask.detach().cpu()
+        for sample_index, category in enumerate(batch.categories):
+            sample_map = anomaly_maps[sample_index : sample_index + 1]
+            sample_object_mask = object_masks[sample_index : sample_index + 1]
+            mask_bool = sample_object_mask > 0
+            values = sample_map[mask_bool]
+            if values.numel() == 0:
+                values = sample_map.reshape(-1)
+            collected_values.setdefault(str(category), []).append(values.detach().cpu().flatten())
+            collected_object_pixels.setdefault(str(category), []).append(
+                torch.tensor([int(mask_bool.sum().item())], dtype=torch.float32)
+            )
+        if max_batches and batch_index + 1 >= max_batches:
+            break
+
+    return {
+        category: {
+            "values": torch.cat(values, dim=0) if values else torch.zeros(1, dtype=torch.float32),
+            "object_pixels": (
+                torch.cat(collected_object_pixels.get(category, []), dim=0)
+                if collected_object_pixels.get(category)
+                else torch.zeros(1, dtype=torch.float32)
+            ),
+            "sample_count": torch.tensor([len(values)], dtype=torch.int64),
+        }
+        for category, values in collected_values.items()
+    }
+
+
+def fit_localization_reference_by_category(
+    model: MulSenDiffX,
+    loader: DataLoader,
+    *,
+    device: torch.device,
+    score_mode: str,
+    anomaly_timestep: int,
+    descriptor_weight: float,
+    global_descriptor_weight: float,
+    multi_timestep_scoring_enabled: bool = False,
+    multi_timestep_fractions: Sequence[float] | None = None,
+    anomaly_map_gaussian_sigma: float = 0.0,
+    lambda_residual: float | None = None,
+    lambda_noise: float | None = None,
+    lambda_descriptor_spatial: float | None = None,
+    lambda_descriptor_global: float | None = None,
+    global_descriptor_calibration: GlobalDescriptorCalibration | Dict[str, GlobalDescriptorCalibration] | None = None,
+    object_mask_threshold: float = 0.02,
+    localization_quantile: float = 0.995,
+    localization_min_region_area_fraction: float = 0.002,
+    localization_min_region_pixels_floor: int = 4,
+    max_batches: int = 0,
+    seed: int = 31,
+) -> Dict[str, LocalizationCalibration]:
+    measurements = collect_reference_localization_measurements_by_category(
+        model,
+        loader,
+        device=device,
+        score_mode=score_mode,
+        anomaly_timestep=anomaly_timestep,
+        descriptor_weight=descriptor_weight,
+        global_descriptor_weight=global_descriptor_weight,
+        multi_timestep_scoring_enabled=multi_timestep_scoring_enabled,
+        multi_timestep_fractions=multi_timestep_fractions,
+        anomaly_map_gaussian_sigma=anomaly_map_gaussian_sigma,
+        lambda_residual=lambda_residual,
+        lambda_noise=lambda_noise,
+        lambda_descriptor_spatial=lambda_descriptor_spatial,
+        lambda_descriptor_global=lambda_descriptor_global,
+        global_descriptor_calibration=global_descriptor_calibration,
+        object_mask_threshold=object_mask_threshold,
+        max_batches=max_batches,
+        seed=seed,
+    )
+    return {
+        category: fit_localization_calibration(
+            stats["values"],
+            category=category,
+            object_pixel_counts=stats["object_pixels"],
+            quantile=localization_quantile,
+            min_region_area_fraction=localization_min_region_area_fraction,
+            min_region_pixels_floor=localization_min_region_pixels_floor,
+            sample_count=int(stats["sample_count"].item()),
+        )
+        for category, stats in sorted(measurements.items())
     }
 
 

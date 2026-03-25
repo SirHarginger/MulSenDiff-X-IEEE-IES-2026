@@ -58,3 +58,12 @@ def write_history_csv(path: Path | str, rows: Sequence[Dict[str, Any]]) -> Path:
         writer.writeheader()
         writer.writerows(rows)
     return path
+
+
+def append_jsonl(path: Path | str, payload: Dict[str, Any]) -> Path:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, sort_keys=True))
+        handle.write("\n")
+    return path

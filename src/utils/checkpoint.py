@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 import torch
+from torch.torch_version import TorchVersion
 
 
 def save_checkpoint(
@@ -36,8 +37,18 @@ def load_checkpoint(
     optimizer: torch.optim.Optimizer | None = None,
     map_location: str | torch.device = "cpu",
 ) -> Dict[str, Any]:
-    payload = torch.load(Path(path), map_location=map_location, weights_only=False)
+    with torch.serialization.safe_globals([TorchVersion]):
+        payload = torch.load(Path(path), map_location=map_location, weights_only=True)
     model.load_state_dict(payload["model_state_dict"])
     if optimizer is not None and "optimizer_state_dict" in payload:
         optimizer.load_state_dict(payload["optimizer_state_dict"])
     return payload
+
+
+def read_checkpoint_payload(
+    path: Path | str,
+    *,
+    map_location: str | torch.device = "cpu",
+) -> Dict[str, Any]:
+    with torch.serialization.safe_globals([TorchVersion]):
+        return torch.load(Path(path), map_location=map_location, weights_only=True)

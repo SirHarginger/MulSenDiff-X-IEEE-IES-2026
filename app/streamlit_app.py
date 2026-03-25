@@ -1,40 +1,43 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Mapping, Sequence
 
+import numpy as np
 import streamlit as st
 import torch
 from PIL import Image
-from torch.utils.data import DataLoader
+from scipy import ndimage
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.data_loader import DescriptorConditioningDataset, collate_model_samples
-from src.evaluation.metrics import binary_f1_score, intersection_over_union
-from src.explainer.evidence_builder import build_evidence_package
-from src.explainer.report import render_templated_explanation
-from src.inference.anomaly_scorer import score_batch
-from src.inference.localization import estimate_object_mask, normalize_anomaly_map, threshold_anomaly_map
-from src.inference.quantification import fit_masi_calibration
 from app.dashboard_data import (
-    find_available_training_runs,
-    list_checkpoint_files,
-    load_json,
+    default_app_sessions_root,
+    find_available_evaluation_runs,
+    find_known_processed_samples,
+    load_run_bundle,
+    match_uploaded_rgb_name,
 )
-from src.models.mulsendiffx import MulSenDiffX
-from src.training.train_diffusion import collect_reference_scores, load_gt_mask
-from src.utils.checkpoint import load_checkpoint
+from app.gemini_client import (
+    build_root_cause_evidence,
+    generate_root_cause_explanation,
+    load_gemini_config,
+    save_gemini_generation,
+)
+from app.inference_runtime import SharedInferenceSession, load_shared_inference_session, run_known_sample_inference
+from src.data_loader import ProcessedSampleRecord
+from src.explainer.evidence_builder import EvidencePackage
 
 
 st.set_page_config(
     page_title="MulSenDiff-X Inspector",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 
@@ -43,48 +46,67 @@ def inject_styles() -> None:
         """
         <style>
             .stApp {
-                background:
-                    radial-gradient(circle at top right, rgba(196, 109, 28, 0.12), transparent 26%),
-                    linear-gradient(180deg, #f4f1ea 0%, #fbfaf7 100%);
+                background: #f7f8fa;
             }
             .block-container {
-                padding-top: 1.6rem;
+                padding-top: 1.2rem;
                 padding-bottom: 2rem;
+                max-width: 1220px;
             }
-            .hero-card {
-                background: linear-gradient(135deg, #1d2a33 0%, #314754 100%);
-                color: #f6f1e7;
-                padding: 1.2rem 1.3rem;
-                border-radius: 18px;
-                border: 1px solid rgba(255,255,255,0.08);
-                box-shadow: 0 18px 48px rgba(24, 33, 40, 0.12);
-                margin-bottom: 1rem;
+            .app-shell {
+                background: transparent;
             }
-            .hero-card h1 {
+            .hero h1 {
                 margin: 0;
-                font-size: 2rem;
-                letter-spacing: 0.02em;
+                color: #111827;
+                font-size: 2.1rem;
+                line-height: 1.1;
+                letter-spacing: -0.02em;
             }
-            .hero-card p {
-                margin: 0.4rem 0 0 0;
-                color: #d6d9dc;
+            .hero p {
+                margin: 0.35rem 0 1.2rem 0;
+                color: #4b5563;
+                font-size: 1rem;
             }
-            .section-card {
-                background: rgba(255,255,255,0.78);
-                border: 1px solid rgba(40,52,60,0.08);
+            .card {
+                background: #ffffff;
+                border: 1px solid #e5e7eb;
                 border-radius: 18px;
                 padding: 1rem 1.1rem;
-                box-shadow: 0 10px 28px rgba(20, 28, 36, 0.05);
+                box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+                margin-bottom: 1rem;
             }
-            .pill {
+            .card h3, .card h4 {
+                margin-top: 0;
+                color: #111827;
+            }
+            .status-pill {
                 display: inline-block;
-                padding: 0.2rem 0.65rem;
+                padding: 0.28rem 0.72rem;
                 border-radius: 999px;
-                background: #d66c1f;
-                color: white;
-                font-size: 0.86rem;
-                font-weight: 600;
-                margin-right: 0.4rem;
+                font-size: 0.85rem;
+                font-weight: 700;
+                margin-bottom: 0.85rem;
+                border: 1px solid transparent;
+            }
+            .status-normal {
+                background: #ecfdf3;
+                color: #027a48;
+                border-color: #abefc6;
+            }
+            .status-anomaly {
+                background: #fff1f3;
+                color: #c4320a;
+                border-color: #fecdca;
+            }
+            .bullet-list {
+                margin: 0;
+                padding-left: 1.1rem;
+                color: #374151;
+            }
+            .subtle {
+                color: #6b7280;
+                font-size: 0.92rem;
             }
         </style>
         """,
@@ -92,319 +114,523 @@ def inject_styles() -> None:
     )
 
 
+@st.cache_data(show_spinner=False)
+def load_eval_bundle_cached(run_root_str: str) -> Dict[str, Any]:
+    return load_run_bundle(run_root_str)
+
+
 @st.cache_resource(show_spinner=False)
-def load_inference_session(run_root_str: str, checkpoint_str: str) -> Dict[str, Any]:
-    run_root = Path(run_root_str)
-    checkpoint_path = Path(checkpoint_str)
-    config = load_json(run_root / "config.json")
-    if not isinstance(config, dict):
-        raise ValueError(f"Invalid config payload for run {run_root}")
+def load_inference_session_cached(eval_run_root_str: str) -> SharedInferenceSession:
+    return load_shared_inference_session(repo_root=REPO_ROOT, eval_run_root=eval_run_root_str)
 
-    target_size = tuple(int(value) for value in config.get("target_size", [256, 256]))
-    device = torch.device(str(config.get("device", "cpu")))
-    batch_size = int(config.get("batch_size", 4))
-    score_mode = str(config.get("score_mode", "noise_error"))
-    category = str(config.get("category", "capsule"))
 
-    train_dataset = DescriptorConditioningDataset(
-        config["train_manifest_csv"],
-        data_root=REPO_ROOT,
-        target_size=target_size,
-        global_stats_path=config["global_stats_json"],
+@st.cache_data(show_spinner=False)
+def load_known_records_cached(categories: tuple[str, ...]) -> List[ProcessedSampleRecord]:
+    return find_known_processed_samples(REPO_ROOT, categories=categories)
+
+
+def tensor_to_rgb_array(tensor: torch.Tensor) -> np.ndarray:
+    image = tensor.detach().cpu().clamp(0.0, 1.0).permute(1, 2, 0).numpy()
+    return (image * 255.0).astype(np.uint8)
+
+
+def blend_overlay(rgb: torch.Tensor, anomaly_map: torch.Tensor) -> np.ndarray:
+    rgb_array = tensor_to_rgb_array(rgb).astype(np.float32) / 255.0
+    score = anomaly_map.detach().cpu().numpy().astype(np.float32)
+    if score.ndim == 3:
+        score = score.squeeze(0)
+    score = np.clip(score, 0.0, 1.0)
+    heatmap = np.zeros_like(rgb_array)
+    heatmap[..., 0] = score
+    heatmap[..., 1] = np.clip(score * 0.45, 0.0, 1.0)
+    overlay = rgb_array * (1.0 - (0.45 * score[..., None])) + heatmap * (0.60 * score[..., None])
+    return (np.clip(overlay, 0.0, 1.0) * 255.0).astype(np.uint8)
+
+
+def resolve_uploaded_record(
+    *,
+    upload_name: str,
+    upload_bytes: bytes,
+    records: Sequence[ProcessedSampleRecord],
+) -> ProcessedSampleRecord | None:
+    upload_hash = hashlib.sha256(upload_bytes).hexdigest()
+    exact_matches: List[ProcessedSampleRecord] = []
+    for record in records:
+        source_path = Path(record.rgb_source_path)
+        if not source_path.is_absolute():
+            source_path = REPO_ROOT / source_path
+        if not source_path.exists():
+            continue
+        if hashlib.sha256(source_path.read_bytes()).hexdigest() == upload_hash:
+            exact_matches.append(record)
+    if len(exact_matches) == 1:
+        return exact_matches[0]
+    if exact_matches:
+        return exact_matches[0]
+
+    name_matches = match_uploaded_rgb_name(upload_name, records)
+    if len(name_matches) == 1:
+        return name_matches[0]
+    return name_matches[0] if name_matches else None
+
+
+def find_reference_record(records: Sequence[ProcessedSampleRecord], category: str) -> ProcessedSampleRecord | None:
+    good_records = [
+        record
+        for record in records
+        if record.category == category and record.split == "train" and record.defect_label == "good"
+    ]
+    return good_records[0] if good_records else None
+
+
+def load_reference_image(record: ProcessedSampleRecord | None) -> Image.Image | None:
+    if record is None:
+        return None
+    candidates = [
+        Path(record.sample_dir) / "rgb.png",
+        Path(record.rgb_source_path),
+    ]
+    for candidate in candidates:
+        resolved = candidate if candidate.is_absolute() else REPO_ROOT / candidate
+        if resolved.exists():
+            return Image.open(resolved).convert("RGB")
+    return None
+
+
+def region_location_label(centroid_xy: tuple[float, float], image_shape: tuple[int, int]) -> str:
+    height, width = image_shape
+    x, y = centroid_xy
+    horizontal = "left" if x < width * 0.33 else "right" if x > width * 0.66 else "center"
+    vertical = "upper" if y < height * 0.33 else "lower" if y > height * 0.66 else "middle"
+    if horizontal == "center" and vertical == "middle":
+        return "central region"
+    if horizontal == "center":
+        return f"{vertical} region"
+    if vertical == "middle":
+        return f"{horizontal} side"
+    return f"{vertical}-{horizontal} region"
+
+
+def region_intensity_label(score: float) -> str:
+    if score >= 0.80:
+        return "high anomaly"
+    if score >= 0.50:
+        return "medium anomaly"
+    return "low anomaly"
+
+
+def extract_detected_regions(
+    *,
+    predicted_mask: torch.Tensor,
+    anomaly_map: torch.Tensor,
+    limit: int = 3,
+) -> List[Dict[str, Any]]:
+    mask = predicted_mask.detach().cpu().numpy().astype(bool)
+    if mask.ndim == 3:
+        mask = mask.squeeze(0)
+    score_map = anomaly_map.detach().cpu().numpy().astype(np.float32)
+    if score_map.ndim == 3:
+        score_map = score_map.squeeze(0)
+
+    labeled, count = ndimage.label(mask)
+    regions: List[Dict[str, Any]] = []
+    for region_index in range(1, count + 1):
+        region_mask = labeled == region_index
+        if not region_mask.any():
+            continue
+        ys, xs = np.where(region_mask)
+        region_score = float(score_map[region_mask].max())
+        centroid = (float(xs.mean()), float(ys.mean()))
+        bbox = [int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())]
+        regions.append(
+            {
+                "label": region_location_label(centroid, score_map.shape),
+                "score": region_score,
+                "bbox": bbox,
+                "centroid_xy": [round(centroid[0], 1), round(centroid[1], 1)],
+                "intensity_label": region_intensity_label(region_score),
+            }
+        )
+
+    regions.sort(key=lambda item: item["score"], reverse=True)
+    return regions[: max(limit, 1)]
+
+
+def evidence_bullets(package: EvidencePackage) -> List[str]:
+    candidates = [
+        *package.rgb_observations,
+        *package.thermal_observations,
+        *package.geometric_observations,
+        *package.cross_modal_support,
+    ]
+    bullets: List[str] = []
+    for item in candidates:
+        cleaned = str(item).strip().rstrip(".")
+        if cleaned and cleaned not in bullets:
+            bullets.append(cleaned)
+    return bullets[:3]
+
+
+def build_download_report(
+    *,
+    package: EvidencePackage,
+    regions: Sequence[Mapping[str, Any]],
+    explanation: Mapping[str, Any] | None,
+    source_run_name: str,
+    selected_record: ProcessedSampleRecord,
+) -> str:
+    lines = [
+        "# MulSenDiff-X Inspection Report",
+        "",
+        f"- Category: {package.category}",
+        f"- Sample: {selected_record.sample_name}",
+        f"- Source model run: {source_run_name}",
+        f"- Status: {package.status}",
+        f"- Anomaly score: {package.raw_score:.6f}",
+        f"- Severity: {package.severity_0_100:.1f}/100",
+        f"- Affected area: {package.affected_area_pct:.2f}%",
+        "",
+        "## Detected Regions",
+    ]
+    if regions:
+        for region in regions:
+            lines.append(
+                f"- {region['label'].title()} — {region['intensity_label']} "
+                f"(score {region['score']:.3f}, bbox {region['bbox']})"
+            )
+    else:
+        lines.append("- No localized regions were extracted from the predicted mask.")
+
+    lines.extend(
+        [
+            "",
+            "## Evidence Summary",
+            *[f"- {bullet}" for bullet in evidence_bullets(package)],
+            "",
+            "## Root Cause Explanation",
+        ]
     )
-    eval_dataset = DescriptorConditioningDataset(
-        config["eval_manifest_csv"],
-        data_root=REPO_ROOT,
-        target_size=target_size,
-        global_stats_path=config["global_stats_json"],
+    if explanation:
+        lines.extend(
+            [
+                f"- Likely cause: {explanation.get('likely_cause', '')}",
+                f"- Why flagged: {explanation.get('why_flagged', '')}",
+                f"- Recommended action: {explanation.get('recommended_action', '')}",
+                f"- Operator summary: {explanation.get('operator_summary', '')}",
+            ]
+        )
+    else:
+        lines.append("- Gemini explanation unavailable for this inspection.")
+    return "\n".join(lines)
+
+
+def render_status_pill(status: str) -> None:
+    is_normal = status.lower().startswith("normal")
+    css_class = "status-normal" if is_normal else "status-anomaly"
+    st.markdown(
+        f'<span class="status-pill {css_class}">{status}</span>',
+        unsafe_allow_html=True,
     )
 
-    model = MulSenDiffX(
-        rgb_channels=3,
-        descriptor_channels=train_dataset.descriptor_channels,
-        global_dim=train_dataset.global_dim,
-    ).to(device)
-    checkpoint_payload = load_checkpoint(checkpoint_path, model=model, map_location=device)
-    model.eval()
 
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=0,
-        collate_fn=collate_model_samples,
-    )
-    calibration_scores = collect_reference_scores(
-        model,
-        train_loader,
-        device=device,
-        score_mode=score_mode,
-        anomaly_timestep=int(config.get("anomaly_timestep", 200)),
-        descriptor_weight=float(config.get("descriptor_weight", 0.25)),
-        object_mask_threshold=float(config.get("object_mask_threshold", 0.02)),
-    )
-    calibration = fit_masi_calibration(calibration_scores, category=category, score_mode=score_mode)
-
-    return {
-        "run_root": run_root,
-        "checkpoint_path": checkpoint_path,
-        "config": config,
-        "device": device,
-        "target_size": target_size,
-        "model": model,
-        "train_dataset": train_dataset,
-        "eval_dataset": eval_dataset,
-        "calibration": calibration,
-        "checkpoint_payload": checkpoint_payload,
-    }
+def render_result_summary(package: EvidencePackage) -> None:
+    cols = st.columns(4)
+    cols[0].metric("Status", package.status)
+    cols[1].metric("Score", f"{package.raw_score:.4f}")
+    cols[2].metric("Severity", f"{package.severity_0_100:.1f}/100")
+    cols[3].metric("Affected Area", f"{package.affected_area_pct:.2f}%")
 
 
-def run_live_sample_inference(session: Dict[str, Any], sample_index: int) -> Dict[str, Any]:
-    sample = session["eval_dataset"][sample_index]
-    config = session["config"]
-    device = session["device"]
-    model = session["model"]
+def render_detected_regions(regions: Sequence[Mapping[str, Any]], package: EvidencePackage) -> None:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("Detection Summary")
+    if regions:
+        primary = regions[0]
+        st.write(
+            f"The dominant anomaly is concentrated in the **{primary['label']}** "
+            f"with {primary['intensity_label']} confidence."
+        )
+    elif package.top_regions:
+        top_region = package.top_regions[0]
+        st.write(
+            "The detector identified a compact anomalous region around "
+            f"centroid {top_region.get('centroid_xy', [])}."
+        )
+    else:
+        st.write("No localized region summary is available for this inspection.")
 
-    x_rgb = sample.x_rgb.unsqueeze(0).to(device)
-    descriptor_maps = sample.conditioning.descriptor_maps.unsqueeze(0).to(device)
-    global_vector = sample.conditioning.global_vector.unsqueeze(0).to(device)
+    st.markdown("**Detected regions**")
+    if regions:
+        for region in regions:
+            st.write(
+                f"- {region['label'].title()} — {region['intensity_label']} "
+                f"(score {region['score']:.3f})"
+            )
+    else:
+        st.write("- No connected regions extracted from the predicted mask.")
 
-    scored = score_batch(
-        model,
-        x_rgb,
-        descriptor_maps,
-        global_vector,
-        score_mode=str(config.get("score_mode", "noise_error")),
-        timestep=int(config.get("anomaly_timestep", 200)),
-        descriptor_weight=float(config.get("descriptor_weight", 0.25)),
-        object_mask_threshold=float(config.get("object_mask_threshold", 0.02)),
-    )
-
-    normalized_map = normalize_anomaly_map(scored.anomaly_map.detach().cpu())
-    object_mask = estimate_object_mask(sample.x_rgb.unsqueeze(0), threshold=float(config.get("object_mask_threshold", 0.02)))
-    predicted_mask = threshold_anomaly_map(
-        normalized_map,
-        percentile=float(config.get("pixel_threshold_percentile", 0.9)),
-        object_mask=object_mask,
-        normalized=True,
-    )
-    gt_mask = load_gt_mask(sample.rgb_gt_path, target_size=session["target_size"])
-    package = build_evidence_package(
-        category=sample.category,
-        split=sample.split,
-        defect_label=sample.defect_label,
-        sample_id=sample.sample_id,
-        is_anomalous=sample.is_anomalous,
-        score_mode=str(config.get("score_mode", "noise_error")),
-        score_label=scored.score_basis_label,
-        raw_score=float(scored.anomaly_score[0].item()),
-        calibration=session["calibration"],
-        normalized_anomaly_map=normalized_map[0],
-        score_basis_map=scored.score_basis_map[0].detach().cpu(),
-        descriptor_support=scored.descriptor_support[0].detach().cpu(),
-        object_mask=object_mask[0],
-        predicted_mask=predicted_mask[0],
-        descriptor_maps=sample.conditioning.descriptor_maps.detach().cpu(),
-        source_paths={
-            "rgb_path": sample.rgb_path,
-            "rgb_gt_path": sample.rgb_gt_path,
-            "ir_gt_path": sample.ir_gt_path,
-            "pointcloud_gt_path": sample.pointcloud_gt_path,
-            "visualization_path": "",
-        },
-    )
-    report_text = render_templated_explanation(package)
-
-    pixel_iou = None
-    pixel_f1 = None
-    if gt_mask is not None:
-        pixel_iou = intersection_over_union(predicted_mask[0], gt_mask)
-        pixel_f1 = binary_f1_score(predicted_mask[0], gt_mask)
-
-    return {
-        "sample": sample,
-        "scored": scored,
-        "normalized_map": normalized_map[0],
-        "object_mask": object_mask[0],
-        "predicted_mask": predicted_mask[0],
-        "gt_mask": gt_mask,
-        "package": package,
-        "report_text": report_text,
-        "pixel_iou": pixel_iou,
-        "pixel_f1": pixel_f1,
-    }
+    st.markdown("**Evidence bullets**")
+    for bullet in evidence_bullets(package):
+        st.write(f"- {bullet}")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
-def tensor_to_rgb_image(tensor: torch.Tensor) -> Any:
-    return tensor.detach().cpu().clamp(0.0, 1.0).permute(1, 2, 0).numpy()
+def render_root_cause_explanation(explanation: Mapping[str, Any] | None, error_message: str | None) -> None:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("Root-Cause Explanation")
+    if explanation:
+        st.markdown(f"**Likely cause**  \n{explanation.get('likely_cause', '')}")
+        st.markdown(f"**Why flagged**  \n{explanation.get('why_flagged', '')}")
+        st.markdown(f"**Recommended action**  \n{explanation.get('recommended_action', '')}")
+        st.caption(str(explanation.get("operator_summary", "")))
+    else:
+        st.warning(error_message or "Gemini explanation is unavailable for this inspection.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
-def tensor_to_gray_image(tensor: torch.Tensor) -> Any:
-    return tensor.detach().cpu().squeeze().numpy()
+def render_compare_with_normal(reference_image: Image.Image | None, inspection_rgb: np.ndarray) -> None:
+    if reference_image is None:
+        st.info("No train/good reference image was found for this category.")
+        return
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("Compare With Normal")
+    compare_cols = st.columns(2)
+    compare_cols[0].image(inspection_rgb, caption="Inspection image", use_container_width=True)
+    compare_cols[1].image(reference_image, caption="Normal reference", use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def render_technical_details(
+    *,
+    result: Dict[str, Any],
+    bundle: Dict[str, Any],
+    selected_record: ProcessedSampleRecord,
+    regions: Sequence[Mapping[str, Any]],
+) -> None:
+    package: EvidencePackage = result["package"]
+    with st.expander("Technical details"):
+        st.markdown("**Model source**")
+        st.json(
+            {
+                "eval_run": str(bundle["run_root"].name),
+                "checkpoint_path": bundle["summary"].get("checkpoint_path", ""),
+                "masi_calibration_path": bundle["summary"].get("calibration_path", ""),
+                "global_descriptor_calibration_path": bundle["summary"].get("global_descriptor_calibration_path", ""),
+                "localization_calibration_path": bundle["summary"].get("localization_calibration_path", ""),
+                "selected_categories": bundle["summary"].get("selected_categories", []),
+                "matched_sample": selected_record.sample_name,
+                "session_dir": str(result["session_dir"]),
+                "localization_method": str(result.get("localization_method", "")),
+            },
+            expanded=False,
+        )
+        st.markdown("**Structured evidence payload sent to Gemini**")
+        st.json(result["evidence_payload"], expanded=False)
+        st.markdown("**Detected regions**")
+        st.json(list(regions), expanded=False)
+        st.markdown("**Evidence package**")
+        st.json(package.to_dict(), expanded=False)
+        if result.get("retrieved_context"):
+            st.markdown("**Retrieved context**")
+            st.json(
+                [item.to_dict() if hasattr(item, "to_dict") else item for item in result["retrieved_context"]],
+                expanded=False,
+            )
+        if result.get("generation_paths"):
+            st.markdown("**Saved Gemini outputs**")
+            st.json(result["generation_paths"], expanded=False)
+        st.markdown("**Full technical panel**")
+        st.image(str(result["panel_path"]), caption="Full detector panel", use_container_width=True)
+
+
+def resolve_gemini_status(
+    *,
+    gemini_enabled: bool,
+    inspection_state: Mapping[str, Any] | None,
+) -> str:
+    if not gemini_enabled:
+        return "Gemini: not configured"
+    if not inspection_state:
+        return "Gemini: key detected"
+    if inspection_state.get("generation_paths"):
+        return "Gemini: last call succeeded"
+    if str(inspection_state.get("explanation_error", "")).strip():
+        return "Gemini: key detected, last call failed"
+    return "Gemini: key detected"
 
 
 def main() -> None:
     inject_styles()
-    st.markdown(
-        """
-        <div class="hero-card">
-            <h1>MulSenDiff-X Inspector</h1>
-            <p>Checkpoint-driven multimodal anomaly review for trained runs, with live inference, calibrated severity, and evidence-grounded reporting.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
-    training_runs = find_available_training_runs(REPO_ROOT / "runs")
-    if not training_runs:
-        st.error("No trained runs with checkpoints were found under runs/. Train a model first.")
+    evaluation_runs = find_available_evaluation_runs(REPO_ROOT / "runs")
+    if not evaluation_runs:
+        st.error("No evaluation runs were found under runs/. Evaluate the shared checkpoint first.")
         return
 
-    st.sidebar.header("Run Controls")
-    run_lookup = {run.name: run for run in training_runs}
-    selected_run_name = st.sidebar.selectbox("Training Run", list(run_lookup.keys()))
+    st.sidebar.subheader("Model Source")
+    run_lookup = {run.name: run for run in evaluation_runs}
+    selected_run_name = st.sidebar.selectbox("Evaluation run", list(run_lookup.keys()))
     selected_run = run_lookup[selected_run_name]
-    checkpoint_files = list_checkpoint_files(selected_run.root)
-    checkpoint_lookup = {path.name: path for path in checkpoint_files}
-    selected_checkpoint_name = st.sidebar.selectbox(
-        "Checkpoint",
-        list(checkpoint_lookup.keys()),
-        index=list(checkpoint_lookup.keys()).index("best.pt") if "best.pt" in checkpoint_lookup else 0,
+    bundle = load_eval_bundle_cached(str(selected_run.root))
+    session = load_inference_session_cached(str(selected_run.root))
+    known_records = load_known_records_cached(tuple(session.category_vocabulary))
+    gemini_config = load_gemini_config()
+    inspection_state = st.session_state.get("inspection_result")
+    st.sidebar.caption(
+        resolve_gemini_status(
+            gemini_enabled=gemini_config.enabled,
+            inspection_state=inspection_state if isinstance(inspection_state, Mapping) else None,
+        )
+    )
+    st.sidebar.caption(
+        "This demo resolves uploads against known paired samples so the detector can use its full multimodal backend."
     )
 
-    session = load_inference_session(str(selected_run.root), str(checkpoint_lookup[selected_checkpoint_name]))
-    eval_dataset = session["eval_dataset"]
-    config = session["config"]
+    st.markdown('<div class="hero">', unsafe_allow_html=True)
+    st.markdown("## MulSenDiff-X Inspector")
+    st.markdown("Upload an image. Detect anomalies. Explain the likely root cause.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    eval_rows = eval_dataset.rows
-    defect_options = sorted({row.defect_label for row in eval_rows})
-    chosen_defect = st.sidebar.selectbox("Defect Filter", ["All"] + defect_options)
-    show_anomalous_only = st.sidebar.toggle("Show Anomalous Only", value=False)
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    input_cols = st.columns([1.8, 1.0, 0.8], vertical_alignment="bottom")
+    uploaded_file = input_cols[0].file_uploader("Upload Image", type=["png", "jpg", "jpeg"])
+    selected_category = input_cols[1].selectbox("Category", list(session.category_vocabulary))
+    run_clicked = input_cols[2].button("Run Inspection", type="primary", use_container_width=True)
+    st.caption("Paired-sample demo: uploads must match a known RGB sample so the backend can resolve the paired modalities.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    visible_indices: List[int] = []
-    visible_labels: List[str] = []
-    for index, row in enumerate(eval_rows):
-        if chosen_defect != "All" and row.defect_label != chosen_defect:
-            continue
-        if show_anomalous_only and not row.is_anomalous:
-            continue
-        visible_indices.append(index)
-        label = f"{row.defect_label} / {row.sample_id} | {'anomalous' if row.is_anomalous else 'good'}"
-        visible_labels.append(label)
+    if run_clicked:
+        if uploaded_file is None:
+            st.error("Upload a category-matching RGB image to run the inspection.")
+        else:
+            candidate_records = [record for record in known_records if record.category == selected_category]
+            selected_record = resolve_uploaded_record(
+                upload_name=uploaded_file.name,
+                upload_bytes=uploaded_file.getvalue(),
+                records=candidate_records,
+            )
+            if selected_record is None:
+                st.error(
+                    "The uploaded image could not be matched to a known paired sample for this category. "
+                    "Use a dataset RGB file so the demo can resolve the paired modalities."
+                )
+            else:
+                with st.spinner("Running anomaly inspection..."):
+                    result = run_known_sample_inference(
+                        session,
+                        selected_record,
+                        output_root=default_app_sessions_root(REPO_ROOT),
+                    )
+                    regions = extract_detected_regions(
+                        predicted_mask=result["predicted_mask"],
+                        anomaly_map=result["normalized_map"],
+                    )
+                    evidence_payload = build_root_cause_evidence(
+                        package=result["package"],
+                        regions=regions,
+                        evidence_bullets=evidence_bullets(result["package"]),
+                    )
 
-    if not visible_indices:
-        st.warning("No samples match the current filters.")
+                    explanation_output: Dict[str, Any] | None = None
+                    explanation_error = ""
+                    generation_paths: Dict[str, str] | None = None
+                    if gemini_config.enabled:
+                        try:
+                            generation = generate_root_cause_explanation(
+                                evidence_payload,
+                                config=gemini_config,
+                                retrieved_context=result["retrieved_context"],
+                            )
+                            generation_paths = save_gemini_generation(
+                                output_root=result["session_dir"] / "gemini",
+                                sample_slug=f"{result['package'].category}_{result['package'].defect_label}_{result['package'].sample_id}",
+                                source_eval_run=session.eval_run_root,
+                                source_evidence_path=result["package_path"],
+                                package=result["package"],
+                                retrieved_context=result["retrieved_context"],
+                                prompt_payload=evidence_payload,
+                                generation=generation,
+                            )
+                            explanation_output = dict(generation["structured_output"])
+                        except Exception as exc:
+                            explanation_error = str(exc)
+                    else:
+                        explanation_error = "Gemini is not configured. Set GOOGLE_API_KEY or GEMINI_API_KEY and rerun the inspection."
+
+                    st.session_state["inspection_result"] = {
+                        "selected_record": selected_record,
+                        "result": result,
+                        "regions": regions,
+                        "evidence_payload": evidence_payload,
+                        "explanation_output": explanation_output,
+                        "explanation_error": explanation_error,
+                        "generation_paths": generation_paths,
+                    }
+
+    inspection_state = st.session_state.get("inspection_result")
+    if not inspection_state:
+        st.info("Run an inspection to see the anomaly overlay, severity summary, and Gemini explanation.")
         return
 
-    selected_position = st.sidebar.selectbox(
-        "Sample",
-        list(range(len(visible_labels))),
-        format_func=lambda idx: visible_labels[idx],
+    selected_record = inspection_state["selected_record"]
+    result = inspection_state["result"]
+    package: EvidencePackage = result["package"]
+    regions = inspection_state["regions"]
+    explanation_output = inspection_state["explanation_output"]
+    explanation_error = inspection_state["explanation_error"]
+    generation_paths = inspection_state["generation_paths"]
+    original_image = tensor_to_rgb_array(result["display_rgb"])
+    overlay_image = blend_overlay(result["display_rgb"], result["normalized_map"])
+    reference_image = load_reference_image(find_reference_record(known_records, package.category))
+
+    render_status_pill(package.status)
+    render_result_summary(package)
+
+    evidence_cols = st.columns(2, gap="large")
+    with evidence_cols[0]:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("Original Image")
+        st.image(original_image, caption="Inspection image", use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    with evidence_cols[1]:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("Anomaly Map / Overlay")
+        st.image(overlay_image, caption="Localized anomaly overlay", use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    render_detected_regions(regions, package)
+    render_root_cause_explanation(explanation_output, explanation_error)
+
+    actions = st.columns([1.0, 1.0])
+    compare_with_normal = actions[0].toggle("Compare with normal")
+    report_text = build_download_report(
+        package=package,
+        regions=regions,
+        explanation=explanation_output,
+        source_run_name=selected_run.name,
+        selected_record=selected_record,
     )
-    inference = run_live_sample_inference(session, visible_indices[selected_position])
-    package = inference["package"]
-    sample = inference["sample"]
-    scored = inference["scored"]
-
-    st.markdown(
-        f'<span class="pill">{package.status}</span><span class="pill">{package.score_mode}</span><span class="pill">{sample.category}</span>',
-        unsafe_allow_html=True,
+    actions[1].download_button(
+        "Download report",
+        data=report_text,
+        file_name=f"{package.category}_{package.sample_id}_inspection_report.md",
+        mime="text/markdown",
+        use_container_width=True,
     )
 
-    metric_cols = st.columns(5)
-    metric_cols[0].metric("Severity", f"{package.severity_0_100:.1f}/100")
-    metric_cols[1].metric("Confidence", f"{package.confidence_0_100:.1f}/100")
-    metric_cols[2].metric("Raw Score", f"{package.raw_score:.4f}")
-    metric_cols[3].metric("Affected Area", f"{package.affected_area_pct:.2f}%")
-    metric_cols[4].metric("Peak Anomaly", f"{package.peak_anomaly_0_100:.1f}/100")
+    if compare_with_normal:
+        render_compare_with_normal(reference_image, original_image)
 
-    left, right = st.columns([1.45, 1.0], gap="large")
-
-    with left:
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.subheader("Live Inference View")
-        image_cols = st.columns(3)
-        image_cols[0].image(tensor_to_rgb_image(sample.x_rgb), caption="RGB", use_container_width=True)
-        image_cols[1].image(
-            tensor_to_rgb_image(scored.reconstructed_rgb[0].detach().cpu()),
-            caption="Reconstructed",
-            use_container_width=True,
-        )
-        image_cols[2].image(tensor_to_gray_image(inference["normalized_map"]), caption="Anomaly Map", use_container_width=True)
-
-        map_cols = st.columns(4)
-        map_cols[0].image(tensor_to_gray_image(scored.score_basis_map[0].detach().cpu()), caption=scored.score_basis_label, use_container_width=True)
-        map_cols[1].image(tensor_to_gray_image(scored.descriptor_support[0].detach().cpu()), caption="Descriptor Support", use_container_width=True)
-        map_cols[2].image(tensor_to_gray_image(inference["predicted_mask"]), caption="Predicted Mask", use_container_width=True)
-        if inference["gt_mask"] is not None:
-            map_cols[3].image(tensor_to_gray_image(inference["gt_mask"]), caption="GT Mask", use_container_width=True)
-        else:
-            map_cols[3].info("No GT mask available for this sample.")
-
-        if inference["pixel_iou"] is not None and inference["pixel_f1"] is not None:
-            st.caption(f"Live localisation check: Pixel IoU {inference['pixel_iou']:.4f} | Pixel F1 {inference['pixel_f1']:.4f}")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.subheader("Templated Grounded Report")
-        st.code(inference["report_text"], language="markdown")
-        report_bytes = inference["report_text"].encode("utf-8")
-        st.download_button("Download Report", data=report_bytes, file_name=f"{sample.category}_{sample.defect_label}_{sample.sample_id}.md", mime="text/markdown")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with right:
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.subheader("Evidence Breakdown")
-        breakdown_rows = [{"source": key.replace("_pct", "").replace("_", " ").title(), "percent": value} for key, value in package.evidence_breakdown.items()]
-        st.bar_chart({row["source"]: row["percent"] for row in breakdown_rows}, horizontal=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.subheader("Observations")
-        for section_title, items in [
-            ("RGB / Score Basis", package.rgb_observations),
-            ("Thermal", package.thermal_observations),
-            ("Geometry", package.geometric_observations),
-            ("Cross-Modal", package.cross_modal_support),
-            ("Confidence Notes", package.confidence_notes),
-        ]:
-            st.markdown(f"**{section_title}**")
-            for item in items:
-                st.write(f"- {item}")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown('<div class="section-card">', unsafe_allow_html=True)
-        st.subheader("Run Metadata")
-        top_region = package.top_regions[0] if package.top_regions else {}
-        st.json(
-            {
-                "run": selected_run.root.name,
-                "checkpoint": selected_checkpoint_name,
-                "loaded_epoch": int(session["checkpoint_payload"].get("epoch", 0)),
-                "category": config.get("category"),
-                "score_mode": config.get("score_mode"),
-                "anomaly_timestep": config.get("anomaly_timestep"),
-                "calibration": session["calibration"].to_dict(),
-                "top_region": top_region,
-                "source_paths": package.source_paths,
-            },
-            expanded=False,
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    st.subheader("Filtered Sample Inventory")
-    inventory_rows = []
-    for index in visible_indices:
-        row = eval_rows[index]
-        inventory_rows.append(
-            {
-                "defect_label": row.defect_label,
-                "sample_id": row.sample_id,
-                "is_anomalous": row.is_anomalous,
-                "rgb_path": row.rgb_path,
-            }
-        )
-    st.dataframe(inventory_rows, use_container_width=True, hide_index=True)
+    render_technical_details(
+        result={
+            **result,
+            "evidence_payload": inspection_state["evidence_payload"],
+            "generation_paths": generation_paths,
+        },
+        bundle=bundle,
+        selected_record=selected_record,
+        regions=regions,
+    )
 
 
 if __name__ == "__main__":

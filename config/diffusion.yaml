@@ -5,7 +5,6 @@ data:
   eval_manifest: data/splits/eval_manifest.csv
   global_stats: data/processed/manifests/global_feature_stats.json
   image_size: 256
-  selected_categories: []
   object_crop_enabled: true
   object_crop_margin_ratio: 0.1
   object_crop_mask_source: rgb_then_pc_density
@@ -16,7 +15,6 @@ conditioning:
   global_vector_dim: 10
   global_embedding_dim: 128
   time_embedding_dim: 128
-  category_embedding_dim: 32
 
 model:
   base_channels: 32
@@ -27,21 +25,16 @@ model:
   beta_start: 0.0001
   beta_end: 0.02
   noise_schedule: cosine
-  autoencoder_reconstruction_weight: 0.5
-  diffusion_reconstruction_weight: 0.1
-  edge_reconstruction_weight: 0.05
+  autoencoder_reconstruction_weight: 0.25
 
 training:
   epochs: 50
   epochs_long: 100
   batch_size: 2
   learning_rate: 0.0001
-  seed: 7
   device: cpu
   device_mode: cuda_first
   output_root: runs
-  sampler_mode: balanced_by_category
-  selection_metric: macro_image_auroc
   log_every_n_steps: 10
   log_to_jsonl: true
 
@@ -58,23 +51,25 @@ inference:
   multi_timestep_scoring_enabled: true
   multi_timestep_fractions: [0.05, 0.10, 0.20, 0.30, 0.40]
   anomaly_map_gaussian_sigma: 3.0
-  lambda_residual: 0.6
-  lambda_noise: 0.4
+  lambda_residual: 1.0
+  lambda_noise: 0.5
   lambda_descriptor_spatial: 0.25
-  lambda_descriptor_global: 0.55
+  lambda_descriptor_global: 0.3
   score_weight_schedule:
     warmup_fraction: 0.4
-    transition_fraction: 0.6
     warmup:
       lambda_residual: 0.2
       lambda_noise: 0.3
       lambda_descriptor_spatial: 0.25
       lambda_descriptor_global: 0.8
     main:
-      lambda_residual: 0.6
-      lambda_noise: 0.4
+      lambda_residual: 1.0
+      lambda_noise: 0.5
       lambda_descriptor_spatial: 0.25
-      lambda_descriptor_global: 0.55
+      lambda_descriptor_global: 0.3
   pixel_threshold_percentile: 0.9
   object_mask_threshold: 0.02
+  localization_quantile: 0.995
+  localization_min_region_area_fraction: 0.002
+  localization_min_region_pixels_floor: 4
   retrieval_top_k: 3

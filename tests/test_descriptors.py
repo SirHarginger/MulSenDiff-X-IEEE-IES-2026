@@ -1,8 +1,12 @@
+import numpy as np
 from pathlib import Path
+from PIL import Image
 
 from src.preprocessing.crossmodal_descriptors import (
     build_descriptor_metadata,
     descriptor_bundle_is_valid,
+    generate_crossmodal_maps,
+    save_preview_png,
     validate_descriptor_bundle,
     write_descriptor_manifest,
 )
@@ -70,3 +74,44 @@ def test_descriptor_manifest_writer_creates_json(tmp_path: Path) -> None:
 
     assert manifest.exists()
     assert '"name": "crossmodal"' in manifest.read_text(encoding="utf-8")
+
+
+def test_generate_crossmodal_maps_uses_gradient_when_hotspot_is_empty() -> None:
+    zeros = np.zeros((8, 8), dtype=np.float32)
+    gradient = np.zeros((8, 8), dtype=np.float32)
+    gradient[2:6, 2:6] = 0.5
+    pc_curvature = np.zeros((8, 8), dtype=np.float32)
+    pc_curvature[2:6, 2:6] = 0.75
+
+    result = generate_crossmodal_maps(
+        ir_hotspot=zeros,
+        ir_gradient=gradient,
+        pc_curvature=pc_curvature,
+        pc_roughness=zeros,
+        ir_normalized=np.ones((8, 8), dtype=np.float32),
+        pc_depth=np.ones((8, 8), dtype=np.float32),
+        target_size=(8, 8),
+    )
+
+    assert float(result["cross_ir_support"].max()) > 0.0
+    assert float(result["cross_agreement"].max()) > 0.0
+    assert result["global"]["cross_overlap_score"] > 0.0
+
+
+def test_save_preview_png_boosts_sparse_low_amplitude_signal(tmp_path: Path) -> None:
+    source = np.zeros((8, 8), dtype=np.float32)
+    source[2:4, 2:4] = 0.02
+    source[4:6, 4:6] = 0.08
+
+    raw_path = tmp_path / "raw.png"
+    preview_path = tmp_path / "preview.png"
+
+    save_preview_png(source, preview_path)
+    save_preview_png(np.zeros((8, 8), dtype=np.float32), raw_path)
+
+    preview = np.asarray(Image.open(preview_path).convert("L"), dtype=np.uint8)
+    raw = np.asarray(Image.open(raw_path).convert("L"), dtype=np.uint8)
+
+    assert int(preview.max()) == 255
+    assert int(preview[2:4, 2:4].max()) > 0
+    assert int(raw.max()) == 0

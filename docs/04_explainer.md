@@ -35,29 +35,20 @@ A first structured evidence payload can contain:
 
 This package should be serialisable and inspectable before any language generation happens.
 
-## First-Stage Explanation Strategy
+## Product Explanation Strategy
 
-The safest initial version is evidence templating:
+The product-facing explanation path is now:
 
-- identify the strongest anomaly region
-- summarise the RGB residual pattern
-- summarise thermal evidence
-- summarise geometric evidence
-- state whether the modalities agree
-- propose a cautious root-cause hypothesis
-- suggest a next inspection action
+1. build a structured evidence payload from the detector
+2. optionally attach retrieved manufacturing context
+3. send only that grounded evidence to Gemini
+4. require a structured response with:
+   - `likely_cause`
+   - `why_flagged`
+   - `recommended_action`
+   - `operator_summary`
 
-This gives reliable, debuggable outputs even before an LLM is connected.
-
-## Later LLM Integration
-
-When the detector is stable, the explainer can add:
-
-- retrieval over a small manufacturing knowledge base
-- prompt templates driven by structured evidence
-- grounded recommendation generation
-
-The LLM should receive only evidence that has already been computed and validated by the detector pipeline.
+Templated explanations may still exist internally for tests or debugging, but they are not the product story and should not be presented as the serious explanation layer.
 
 ## Output Style
 
@@ -69,17 +60,14 @@ A useful explanation should answer:
 - what defect family is most plausible
 - what action should follow
 
-## Example Explanation Skeleton
+## Example Structured Output
 
-Example output shape:
+Example Gemini output shape:
 
-- anomaly detected in the upper-right region of the part
-- RGB residuals indicate appearance inconsistency
-- infrared descriptors indicate a local thermal hotspot
-- point-cloud descriptors indicate local curvature or surface deviation
-- cross-modal agreement is strong
-- plausible cause: surface damage, foreign body, or structural deformation depending on category
-- recommended action: manual inspection or targeted QA review
+- likely cause: localized surface damage or foreign-body contamination
+- why flagged: concentrated anomaly response with supporting thermal/geometric evidence in the dominant region
+- recommended action: manual review of the highlighted area and targeted QA recheck
+- operator summary: compact operator-facing recap of the finding
 
 ## Guardrails
 
@@ -89,5 +77,6 @@ The explanation layer should:
 - distinguish observation from hypothesis
 - mark low-confidence cases clearly
 - remain category-aware
+- abstain cleanly if Gemini is unavailable rather than substituting a product-facing scripted explanation
 
 This keeps the explanation grounded and challenge-appropriate.

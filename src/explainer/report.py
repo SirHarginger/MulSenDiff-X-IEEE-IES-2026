@@ -11,6 +11,10 @@ def render_templated_explanation(package: EvidencePackage) -> str:
     bbox = top_region.get("bbox_xyxy", [0, 0, 0, 0])
 
     lines = [
+        "# Internal Evidence Summary",
+        "",
+        "This is a deterministic internal debug artifact, not the product-facing Gemini explanation.",
+        "",
         f"Status: {package.status} ({package.severity_0_100:.1f}/100 severity, {package.confidence_0_100:.1f}/100 confidence)",
         f"Sample: {package.category} / {package.defect_label} / {package.sample_id}",
         f"Raw anomaly score: {package.raw_score:.6f}",

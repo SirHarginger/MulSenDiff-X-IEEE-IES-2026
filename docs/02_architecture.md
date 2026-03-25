@@ -86,7 +86,7 @@ Responsibilities:
 
 - package anomaly region evidence
 - attach descriptor summaries
-- support templated or LLM-based explanations
+- feed a structured evidence payload to Gemini for operator-facing explanation
 
 ## Training Principle
 
@@ -129,3 +129,13 @@ Reasons the baseline-first path mattered:
 - per-category validation exposed failures that would have been hidden inside an early joint run
 
 The current shared model is therefore best understood as **MulSenDiff-X in shared-category mode**, built on top of the validated per-category reference baselines.
+
+## Product Deployment Note
+
+The serious demo path in this repo is:
+
+1. MulSenDiff-X performs anomaly detection, localisation, and calibrated severity/area estimation.
+2. The detector exports a structured evidence payload.
+3. Gemini turns that evidence into an operator-facing explanation.
+
+Gemini is not the detector. It is the explanation layer. The current app build is a paired-sample demo, which means uploaded RGB images must resolve to known paired data so the multimodal backend remains honest.

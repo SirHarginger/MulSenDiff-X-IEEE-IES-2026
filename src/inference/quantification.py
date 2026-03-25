@@ -21,6 +21,20 @@ class MasiCalibration:
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
+    @classmethod
+    def from_dict(cls, payload: Dict[str, Any]) -> "MasiCalibration":
+        return cls(
+            category=str(payload["category"]),
+            score_mode=str(payload["score_mode"]),
+            sample_count=int(payload["sample_count"]),
+            mean=float(payload["mean"]),
+            std=float(payload["std"]),
+            q50=float(payload["q50"]),
+            q90=float(payload["q90"]),
+            q95=float(payload["q95"]),
+            q99=float(payload["q99"]),
+        )
+
 
 @dataclass(frozen=True)
 class RegionSummary:

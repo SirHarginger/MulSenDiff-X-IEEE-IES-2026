@@ -77,7 +77,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--knowledge-base-root", default="")
     parser.add_argument("--retrieval-top-k", type=int, default=0)
-    parser.add_argument("--disable-llm-explanations", action="store_true")
+    parser.add_argument(
+        "--enable-internal-llm-debug",
+        action="store_true",
+        help="Write internal rule-based explanation debug artifacts during evaluation.",
+    )
+    parser.add_argument(
+        "--disable-llm-explanations",
+        action="store_true",
+        help="Deprecated compatibility flag. Internal explanation debug artifacts are disabled by default.",
+    )
     return parser
 
 
@@ -123,6 +132,13 @@ def main() -> None:
         lambda_descriptor_global=args.lambda_descriptor_global or None,
         pixel_threshold_percentile=args.pixel_threshold_percentile or float(inference_cfg.get("pixel_threshold_percentile", 0.9)),
         object_mask_threshold=args.object_mask_threshold or float(inference_cfg.get("object_mask_threshold", 0.02)),
+        localization_quantile=float(inference_cfg.get("localization_quantile", 0.995)),
+        localization_min_region_area_fraction=float(
+            inference_cfg.get("localization_min_region_area_fraction", 0.002)
+        ),
+        localization_min_region_pixels_floor=int(
+            inference_cfg.get("localization_min_region_pixels_floor", 4)
+        ),
         object_crop_enabled=coerce_bool_arg(
             args.object_crop_enabled,
             bool(data_cfg.get("object_crop_enabled", False)),
@@ -139,7 +155,7 @@ def main() -> None:
         seed=args.seed if args.seed is not None else int(training_cfg.get("seed", 7)),
         knowledge_base_root=args.knowledge_base_root or None,
         retrieval_top_k=args.retrieval_top_k or int(inference_cfg.get("retrieval_top_k", 3)),
-        enable_llm_explanations=not args.disable_llm_explanations,
+        enable_llm_explanations=args.enable_internal_llm_debug and not args.disable_llm_explanations,
     )
 
     print("run_dir:", result["summary"]["run_dir"])
