@@ -20,15 +20,6 @@ Generated assets are kept out of git:
 - `data/processed/`
 - `runs/`
 
-## Get The Code
-
-```bash
-git clone <your-fork-or-repo-url>
-cd MulSenDiff-X-IEEE-IES-2026
-```
-
-All commands below should be run from the repository root.
-
 ## Dataset Access
 
 This repository contains **code only**. It does **not** include or redistribute the MulSen-AD dataset.
@@ -87,13 +78,9 @@ Verify the runtime:
 python -c "import sys, torch; print('python:', sys.version.split()[0]); print('torch:', torch.__version__); print('cuda_available:', torch.cuda.is_available()); print('device_count:', torch.cuda.device_count()); print('device_name:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'none')"
 ```
 
-Use the same activated environment for preprocessing, training, evaluation, and the app.
-
 ## Quickstart
 
 ### 1. Preprocess the dataset
-
-After downloading and extracting MulSen-AD into `data/raw/MulSen_AD`:
 
 ```bash
 python scripts/run_data_pipeline.py
@@ -114,8 +101,6 @@ Use `--device-mode cpu` on CPU-only machines.
 python scripts/run_training.py --categories all --device-mode cuda
 python scripts/run_evaluation.py --checkpoint runs/<shared_run>/checkpoints/best.pt --categories all --device-mode cuda
 ```
-
-On CPU-only machines, replace `cuda` with `cpu`.
 
 ### 4. Summarize baseline runs
 
@@ -139,7 +124,7 @@ export GOOGLE_API_KEY="your_key_here"
 export GEMINI_MODEL="gemini-2.5-flash"
 ```
 
-Keep the key private and never commit it to git.
+Keep the key private
 
 Then run:
 
