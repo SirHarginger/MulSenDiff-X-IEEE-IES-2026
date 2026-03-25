@@ -20,6 +20,15 @@ Generated assets are kept out of git:
 - `data/processed/`
 - `runs/`
 
+## Get The Code
+
+```bash
+git clone <repository-url>
+cd MulSenDiff-X-IEEE-IES-2026
+```
+
+Run all commands below from the repository root.
+
 ## Dataset Access
 
 This repository contains **code only**. It does **not** include or redistribute the MulSen-AD dataset.
