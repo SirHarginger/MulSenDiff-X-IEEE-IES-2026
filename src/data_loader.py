@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -45,6 +46,12 @@ SUPPORT_DESCRIPTOR_ORDER = [
     "cross_geo_support",
     "cross_inconsistency",
 ]
+
+SYNTHETIC_VALIDATION_RECIPES = (
+    "thermal_hotspot",
+    "geometric_surface_defect",
+    "cross_modal_inconsistency",
+)
 
 _REQUIRED_SAMPLE_FILES = [
     "rgb.png",
@@ -427,34 +434,361 @@ def select_processed_sample_records(
     return [row for row in rows if row.category in selected_categories]
 
 
+def _stable_sample_hash(sample_name: str) -> int:
+    digest = hashlib.sha256(sample_name.encode("utf-8")).hexdigest()
+    return int(digest[:16], 16)
+
+
+def _split_train_core_and_calibration(
+    rows: Sequence[ProcessedSampleRecord],
+    *,
+    calibration_fraction: float = 0.20,
+) -> tuple[list[ProcessedSampleRecord], list[ProcessedSampleRecord]]:
+    grouped: Dict[str, List[ProcessedSampleRecord]] = {}
+    for row in rows:
+        grouped.setdefault(row.category, []).append(row)
+
+    train_core_rows: list[ProcessedSampleRecord] = []
+    calibration_rows: list[ProcessedSampleRecord] = []
+    for category, category_rows in sorted(grouped.items()):
+        ordered = sorted(category_rows, key=lambda item: (_stable_sample_hash(item.sample_name), item.sample_name))
+        if len(ordered) <= 1:
+            train_core_rows.extend(ordered)
+            continue
+        calibration_count = max(1, int(round(len(ordered) * calibration_fraction)))
+        calibration_count = min(calibration_count, len(ordered) - 1)
+        calibration_rows.extend(ordered[:calibration_count])
+        train_core_rows.extend(ordered[calibration_count:])
+    return train_core_rows, calibration_rows
+
+
+def _resolve_sample_dir(path_like: str) -> Path:
+    path = Path(path_like)
+    return path if path.is_absolute() else Path.cwd() / path
+
+
+def _synthetic_mask(size_hw: tuple[int, int], *, sample_name: str, recipe: str) -> torch.Tensor:
+    height, width = size_hw
+    seed_value = _stable_sample_hash(f"{sample_name}:{recipe}") & 0x7FFFFFFF
+    generator = torch.Generator()
+    generator.manual_seed(seed_value)
+    center_x = int(
+        torch.randint(
+            low=max(width // 4, 0),
+            high=max((3 * width) // 4, width // 4 + 1),
+            size=(1,),
+            generator=generator,
+        ).item()
+    )
+    center_y = int(
+        torch.randint(
+            low=max(height // 4, 0),
+            high=max((3 * height) // 4, height // 4 + 1),
+            size=(1,),
+            generator=generator,
+        ).item()
+    )
+    sigma = max(min(height, width) // 8, 2)
+    yy, xx = torch.meshgrid(
+        torch.arange(height, dtype=torch.float32),
+        torch.arange(width, dtype=torch.float32),
+        indexing="ij",
+    )
+    mask = torch.exp(-((xx - center_x) ** 2 + (yy - center_y) ** 2) / max(2.0 * sigma * sigma, 1e-6))
+    return mask.clamp(0.0, 1.0)
+
+
+def _load_gray_stack(sample_dir: Path, names: Sequence[str]) -> Dict[str, torch.Tensor]:
+    return {
+        name: _load_gray_tensor(sample_dir / f"{name}.png").squeeze(0)
+        for name in names
+    }
+
+
+def _save_rgb_tensor(rgb: torch.Tensor, path: Path) -> None:
+    array = (rgb.detach().clamp(0.0, 1.0) * 255.0).round().byte().permute(1, 2, 0).cpu().numpy()
+    Image.fromarray(array, mode="RGB").save(path)
+
+
+def _save_gray_stack(output_dir: Path, stack: Mapping[str, torch.Tensor]) -> None:
+    for name, tensor in stack.items():
+        array = (tensor.detach().clamp(0.0, 1.0) * 255.0).round().byte().cpu().numpy()
+        Image.fromarray(array, mode="L").save(output_dir / f"{name}.png")
+
+
+def _apply_synthetic_recipe(
+    recipe: str,
+    descriptor_maps: Dict[str, torch.Tensor],
+    support_maps: Dict[str, torch.Tensor],
+    mask: torch.Tensor,
+) -> tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
+    updated_descriptors = {key: value.clone() for key, value in descriptor_maps.items()}
+    updated_support = {key: value.clone() for key, value in support_maps.items()}
+
+    def bump(name: str, amount: float, *, support: bool = False) -> None:
+        target = updated_support if support else updated_descriptors
+        target[name] = (target[name] + amount * mask).clamp(0.0, 1.0)
+
+    if recipe == "thermal_hotspot":
+        bump("ir_hotspot", 0.75)
+        bump("ir_gradient", 0.45)
+        bump("ir_variance", 0.35)
+        bump("cross_agreement", 0.25)
+        bump("cross_ir_support", 0.50, support=True)
+    elif recipe == "geometric_surface_defect":
+        bump("pc_curvature", 0.55)
+        bump("pc_roughness", 0.65)
+        bump("pc_normal_deviation", 0.45)
+        bump("cross_agreement", 0.20)
+        bump("cross_geo_support", 0.50, support=True)
+    elif recipe == "cross_modal_inconsistency":
+        bump("ir_hotspot", 0.45)
+        bump("cross_agreement", -0.25)
+        bump("cross_inconsistency", 0.70, support=True)
+        bump("cross_ir_support", 0.25, support=True)
+    else:
+        raise ValueError(f"Unsupported synthetic recipe {recipe!r}.")
+
+    return updated_descriptors, updated_support
+
+
+def _render_synthetic_rgb(rgb: torch.Tensor, mask: torch.Tensor, recipe: str) -> torch.Tensor:
+    rendered = rgb.clone()
+    if recipe == "thermal_hotspot":
+        rendered[0] = (rendered[0] + 0.35 * mask).clamp(0.0, 1.0)
+        rendered[1] = (rendered[1] + 0.15 * mask).clamp(0.0, 1.0)
+    elif recipe == "geometric_surface_defect":
+        rendered[0] = (rendered[0] - 0.20 * mask).clamp(0.0, 1.0)
+        rendered[1] = (rendered[1] - 0.15 * mask).clamp(0.0, 1.0)
+        rendered[2] = (rendered[2] - 0.10 * mask).clamp(0.0, 1.0)
+    else:
+        rendered[2] = (rendered[2] + 0.30 * mask).clamp(0.0, 1.0)
+        rendered[0] = (rendered[0] - 0.10 * mask).clamp(0.0, 1.0)
+    return rendered
+
+
+def _mask_compactness(mask: torch.Tensor) -> float:
+    binary = (mask > 0).to(dtype=torch.uint8)
+    if int(binary.sum().item()) == 0:
+        return 0.0
+    padded = torch.nn.functional.pad(binary, (1, 1, 1, 1))
+    center = padded[1:-1, 1:-1]
+    perimeter = int(((center == 1) & (padded[:-2, 1:-1] == 0)).sum().item())
+    perimeter += int(((center == 1) & (padded[2:, 1:-1] == 0)).sum().item())
+    perimeter += int(((center == 1) & (padded[1:-1, :-2] == 0)).sum().item())
+    perimeter += int(((center == 1) & (padded[1:-1, 2:] == 0)).sum().item())
+    if perimeter <= 0:
+        return 1.0
+    area = float(binary.sum().item())
+    return float((4.0 * 3.141592653589793 * area) / float(perimeter * perimeter))
+
+
+def _top_percent_centroid_distance(left: torch.Tensor, right: torch.Tensor, *, percentile: float = 95.0) -> float:
+    def centroid(array: torch.Tensor) -> tuple[float, float] | None:
+        flat = array.detach().float()
+        if flat.numel() == 0:
+            return None
+        threshold = torch.quantile(flat.reshape(-1), percentile / 100.0)
+        coords = torch.nonzero(flat >= threshold, as_tuple=False)
+        if coords.numel() == 0:
+            return None
+        ys = coords[:, 0].float()
+        xs = coords[:, 1].float()
+        return float(xs.mean().item()), float(ys.mean().item())
+
+    left_centroid = centroid(left)
+    right_centroid = centroid(right)
+    if left_centroid is None or right_centroid is None:
+        return 1.0
+    height, width = left.shape
+    diagonal = max(float((height * height + width * width) ** 0.5), 1e-6)
+    dx = left_centroid[0] - right_centroid[0]
+    dy = left_centroid[1] - right_centroid[1]
+    return float(((dx * dx + dy * dy) ** 0.5) / diagonal)
+
+
+def _compute_synthetic_global_payload(
+    descriptor_maps: Mapping[str, torch.Tensor],
+    support_maps: Mapping[str, torch.Tensor],
+) -> Dict[str, float | bool | str | int]:
+    ir_hotspot = descriptor_maps["ir_hotspot"]
+    ir_gradient = descriptor_maps["ir_gradient"]
+    hotspot_mask = ir_hotspot > 0.0
+    hotspot_values = ir_hotspot[hotspot_mask]
+
+    pc_density = support_maps["pc_density"]
+    valid_geometry = pc_density > 0.0
+    pc_curvature = descriptor_maps["pc_curvature"]
+    pc_roughness = descriptor_maps["pc_roughness"]
+    pc_normal_deviation = descriptor_maps["pc_normal_deviation"]
+    cross_agreement = descriptor_maps["cross_agreement"]
+    cross_inconsistency = support_maps["cross_inconsistency"]
+    cross_ir_support = support_maps["cross_ir_support"]
+    cross_geo_support = support_maps["cross_geo_support"]
+
+    def masked_mean(values: torch.Tensor, mask: torch.Tensor) -> float:
+        selected = values[mask]
+        return float(selected.mean().item()) if selected.numel() else 0.0
+
+    def masked_percentile(values: torch.Tensor, mask: torch.Tensor, quantile: float) -> float:
+        selected = values[mask]
+        if selected.numel() == 0:
+            return 0.0
+        return float(torch.quantile(selected.float(), quantile).item())
+
+    return {
+        "ir_hotspot_area_fraction": round(float(hotspot_mask.float().mean().item()), 6),
+        "ir_max_gradient": round(float(ir_gradient.max().item()), 6),
+        "ir_mean_hotspot_intensity": round(float(hotspot_values.mean().item()) if hotspot_values.numel() else 0.0, 6),
+        "ir_hotspot_compactness": round(_mask_compactness(hotspot_mask.float()), 6),
+        "pc_mean_curvature": round(masked_mean(pc_curvature, valid_geometry), 6),
+        "pc_max_roughness": round(float(pc_roughness[valid_geometry].max().item()) if valid_geometry.any() else 0.0, 6),
+        "pc_p95_normal_deviation": round(masked_percentile(pc_normal_deviation, valid_geometry, 0.95), 6),
+        "cross_overlap_score": round(float(cross_agreement.mean().item()), 6),
+        "cross_centroid_distance": round(
+            _top_percent_centroid_distance(cross_ir_support, cross_geo_support, percentile=95.0),
+            6,
+        ),
+        "cross_inconsistency_score": round(float(cross_inconsistency.mean().item()), 6),
+        "cross_alignment_passed": True,
+        "cross_alignment_message": "synthetic_validation_bundle",
+        "cross_alignment_max_delta": 0,
+    }
+
+
+def _materialize_synthetic_validation_rows(
+    calibration_rows: Sequence[ProcessedSampleRecord],
+    *,
+    output_root: Path,
+) -> list[ProcessedSampleRecord]:
+    synthetic_rows: list[ProcessedSampleRecord] = []
+    output_root.mkdir(parents=True, exist_ok=True)
+
+    for row in calibration_rows:
+        source_sample_dir = _resolve_sample_dir(row.sample_dir)
+        rgb = _load_rgb_tensor(source_sample_dir / "rgb.png")
+        descriptor_maps = _load_gray_stack(source_sample_dir, SPATIAL_DESCRIPTOR_ORDER)
+        support_maps = _load_gray_stack(source_sample_dir, SUPPORT_DESCRIPTOR_ORDER)
+
+        for recipe in SYNTHETIC_VALIDATION_RECIPES:
+            sample_id = f"{row.sample_id}_{recipe}"
+            sample_name = f"{row.category}__synthetic_validation__{recipe}__{sample_id}"
+            bundle_dir = output_root / sample_name
+            bundle_dir.mkdir(parents=True, exist_ok=True)
+
+            mask = _synthetic_mask((int(rgb.shape[1]), int(rgb.shape[2])), sample_name=row.sample_name, recipe=recipe)
+            synthetic_descriptors, synthetic_support = _apply_synthetic_recipe(
+                recipe,
+                descriptor_maps,
+                support_maps,
+                mask,
+            )
+            synthetic_rgb = _render_synthetic_rgb(rgb, mask, recipe)
+            synthetic_global = _compute_synthetic_global_payload(synthetic_descriptors, synthetic_support)
+
+            _save_rgb_tensor(synthetic_rgb, bundle_dir / "rgb.png")
+            _save_gray_stack(bundle_dir, synthetic_descriptors)
+            _save_gray_stack(bundle_dir, synthetic_support)
+            (bundle_dir / "global.json").write_text(
+                json.dumps(synthetic_global, indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+            meta_payload = {
+                "category": row.category,
+                "split": "synthetic_validation",
+                "defect_label": recipe,
+                "sample_id": sample_id,
+                "sample_name": sample_name,
+                "rgb_source_path": row.rgb_source_path,
+                "ir_source_path": row.ir_source_path,
+                "pc_source_path": row.pc_source_path,
+                "gt_mask_path": None,
+            }
+            (bundle_dir / "meta.json").write_text(
+                json.dumps(meta_payload, indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+            synthetic_rows.append(
+                ProcessedSampleRecord(
+                    category=row.category,
+                    split="synthetic_validation",
+                    defect_label=recipe,
+                    sample_id=sample_id,
+                    sample_name=sample_name,
+                    sample_dir=str(bundle_dir),
+                    is_anomalous=True,
+                    gt_mask_path="",
+                    rgb_source_path=row.rgb_source_path,
+                    ir_source_path=row.ir_source_path,
+                    pc_source_path=row.pc_source_path,
+                )
+            )
+    return synthetic_rows
+
+
 def build_runtime_training_manifests(
     *,
     data_root: Path | str = "data",
     categories: Sequence[str] | None = None,
     manifests_root: Path | str | None = None,
+    eval_subset: str = "official_test",
 ) -> Dict[str, object]:
     data_root = Path(data_root)
     samples_root = data_root / "processed" / "samples"
     selected_categories = _normalize_category_list(categories, samples_root=samples_root)
     rows = select_processed_sample_records(data_root=data_root, categories=selected_categories)
-    train_rows = [row for row in rows if row.split == "train" and not row.is_anomalous]
-    eval_rows = [row for row in rows if row.split == "test"]
+    train_good_rows = [row for row in rows if row.split == "train" and not row.is_anomalous]
+    official_test_rows = [row for row in rows if row.split == "test"]
+    train_core_rows, calibration_rows = _split_train_core_and_calibration(train_good_rows)
 
     resolved_manifests_root = Path(manifests_root) if manifests_root is not None else data_root / "splits"
     resolved_manifests_root.mkdir(parents=True, exist_ok=True)
+    synthetic_root = data_root / "processed" / "synthetic_validation_samples"
+    synthetic_rows = _materialize_synthetic_validation_rows(calibration_rows, output_root=synthetic_root)
+    selection_rows = list(calibration_rows) + list(synthetic_rows)
+
+    train_core_csv = resolved_manifests_root / "train_core_good_manifest.csv"
+    calibration_csv = resolved_manifests_root / "calibration_good_manifest.csv"
+    synthetic_csv = resolved_manifests_root / "synthetic_validation_manifest.csv"
+    official_test_csv = resolved_manifests_root / "official_test_manifest.csv"
+    selection_csv = resolved_manifests_root / "selection_manifest.csv"
     train_csv = resolved_manifests_root / "train_manifest.csv"
     eval_csv = resolved_manifests_root / "eval_manifest.csv"
-    _write_manifest_csv(train_csv, train_rows)
-    _write_manifest_csv(eval_csv, eval_rows)
+
+    _write_manifest_csv(train_core_csv, train_core_rows)
+    _write_manifest_csv(calibration_csv, calibration_rows)
+    _write_manifest_csv(synthetic_csv, synthetic_rows)
+    _write_manifest_csv(official_test_csv, official_test_rows)
+    _write_manifest_csv(selection_csv, selection_rows)
+    _write_manifest_csv(train_csv, train_core_rows)
+    if eval_subset == "selection":
+        _write_manifest_csv(eval_csv, selection_rows)
+    elif eval_subset == "synthetic_validation":
+        _write_manifest_csv(eval_csv, synthetic_rows)
+    elif eval_subset == "calibration_good":
+        _write_manifest_csv(eval_csv, calibration_rows)
+    else:
+        _write_manifest_csv(eval_csv, official_test_rows)
 
     global_stats_json = data_root / "processed" / "manifests" / "global_feature_stats.json"
     summary = {
         "categories": selected_categories,
+        "train_core_good_manifest_csv": str(train_core_csv),
+        "calibration_good_manifest_csv": str(calibration_csv),
+        "synthetic_validation_manifest_csv": str(synthetic_csv),
+        "official_test_manifest_csv": str(official_test_csv),
+        "selection_manifest_csv": str(selection_csv),
         "train_manifest_csv": str(train_csv),
         "eval_manifest_csv": str(eval_csv),
+        "eval_subset": eval_subset,
         "global_stats_json": str(global_stats_json),
-        "train_records": len(train_rows),
-        "eval_records": len(eval_rows),
+        "train_core_records": len(train_core_rows),
+        "calibration_records": len(calibration_rows),
+        "synthetic_validation_records": len(synthetic_rows),
+        "selection_records": len(selection_rows),
+        "official_test_records": len(official_test_rows),
+        "train_records": len(train_core_rows),
+        "eval_records": len(selection_rows) if eval_subset == "selection" else len(official_test_rows) if eval_subset == "official_test" else len(synthetic_rows) if eval_subset == "synthetic_validation" else len(calibration_rows),
     }
     summary_json = resolved_manifests_root / "manifest_summary.json"
     summary_json.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
@@ -463,9 +797,19 @@ def build_runtime_training_manifests(
         "eval_csv": eval_csv,
         "global_stats_json": global_stats_json,
         "summary_json": summary_json,
-        "train_rows": train_rows,
-        "eval_rows": eval_rows,
+        "train_rows": train_core_rows,
+        "train_core_rows": train_core_rows,
+        "calibration_rows": calibration_rows,
+        "synthetic_rows": synthetic_rows,
+        "selection_rows": selection_rows,
+        "eval_rows": selection_rows if eval_subset == "selection" else official_test_rows if eval_subset == "official_test" else synthetic_rows if eval_subset == "synthetic_validation" else calibration_rows,
+        "official_test_rows": official_test_rows,
         "selected_categories": selected_categories,
+        "train_core_csv": train_core_csv,
+        "calibration_csv": calibration_csv,
+        "synthetic_csv": synthetic_csv,
+        "selection_csv": selection_csv,
+        "official_test_csv": official_test_csv,
     }
 
 
@@ -484,6 +828,11 @@ def build_training_manifests(
     return {
         "train_csv": payload["train_csv"],  # type: ignore[return-value]
         "eval_csv": payload["eval_csv"],  # type: ignore[return-value]
+        "train_core_csv": payload["train_core_csv"],  # type: ignore[return-value]
+        "calibration_csv": payload["calibration_csv"],  # type: ignore[return-value]
+        "synthetic_csv": payload["synthetic_csv"],  # type: ignore[return-value]
+        "selection_csv": payload["selection_csv"],  # type: ignore[return-value]
+        "official_test_csv": payload["official_test_csv"],  # type: ignore[return-value]
         "global_stats_json": payload["global_stats_json"],  # type: ignore[return-value]
         "summary_json": payload["summary_json"],  # type: ignore[return-value]
     }
@@ -548,6 +897,7 @@ class DescriptorConditioningDataset(Dataset[ModelSample]):
         self.records = self._read_manifest_rows(self.manifest_csv)
         self.descriptor_channels = len(SPATIAL_DESCRIPTOR_ORDER)
         self.support_channels = len(SUPPORT_DESCRIPTOR_ORDER)
+        self.conditioning_channels = self.descriptor_channels + self.support_channels
         self.global_dim = len(GLOBAL_FEATURE_NAMES)
         resolved_vocabulary = list(category_vocabulary or sorted({row["category"] for row in self.records}))
         self.category_vocabulary = tuple(resolved_vocabulary)

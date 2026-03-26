@@ -85,6 +85,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--global-embedding-dim", type=int, default=0)
     parser.add_argument("--time-embedding-dim", type=int, default=0)
     parser.add_argument("--category-embedding-dim", type=int, default=0)
+    parser.add_argument(
+        "--disable-category-embedding",
+        action="store_true",
+        help="Shared-no-category ablation: remove category identity during training.",
+    )
     parser.add_argument("--attention-heads", type=int, default=0)
     parser.add_argument("--latent-channels", type=int, default=0)
     parser.add_argument("--diffusion-steps", type=int, default=0)
@@ -176,6 +181,7 @@ def main() -> None:
         global_embedding_dim=args.global_embedding_dim or int(conditioning_cfg.get("global_embedding_dim", 128)),
         time_embedding_dim=args.time_embedding_dim or int(conditioning_cfg.get("time_embedding_dim", 128)),
         category_embedding_dim=args.category_embedding_dim or int(conditioning_cfg.get("category_embedding_dim", 32)),
+        disable_category_embedding=args.disable_category_embedding,
         attention_heads=args.attention_heads or int(model_cfg.get("attention_heads", 4)),
         latent_channels=args.latent_channels or int(model_cfg.get("latent_channels", 4)),
         diffusion_steps=args.diffusion_steps or int(model_cfg.get("diffusion_steps", 1000)),

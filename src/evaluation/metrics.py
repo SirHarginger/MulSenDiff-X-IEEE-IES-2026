@@ -109,6 +109,36 @@ def pixel_level_auroc(
     return image_level_auroc(scores, labels)
 
 
+def pixel_level_average_precision(
+    score_maps: Sequence[torch.Tensor],
+    target_masks: Sequence[torch.Tensor],
+    object_masks: Sequence[torch.Tensor],
+) -> float:
+    scores, labels = _flatten_masked_pixel_data(score_maps, target_masks, object_masks)
+    if scores.numel() == 0:
+        return 0.0
+    return image_average_precision(scores, labels)
+
+
+def pixel_f1_max(
+    score_maps: Sequence[torch.Tensor],
+    target_masks: Sequence[torch.Tensor],
+    object_masks: Sequence[torch.Tensor],
+    *,
+    num_thresholds: int = 256,
+) -> float:
+    scores, labels = _flatten_masked_pixel_data(score_maps, target_masks, object_masks)
+    if scores.numel() == 0:
+        return 0.0
+
+    thresholds = torch.linspace(0.0, 1.0, steps=max(int(num_thresholds), 2), dtype=torch.float32)
+    best_f1 = 0.0
+    labels_float = labels.float()
+    for threshold in thresholds.tolist():
+        best_f1 = max(best_f1, binary_f1_score(scores, labels_float, threshold=float(threshold)))
+    return float(best_f1)
+
+
 def aupro(
     score_maps: Sequence[torch.Tensor],
     target_masks: Sequence[torch.Tensor],

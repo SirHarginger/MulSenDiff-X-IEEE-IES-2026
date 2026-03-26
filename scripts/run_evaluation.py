@@ -70,6 +70,20 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--object-crop-margin-ratio", type=float, default=0.0)
     parser.add_argument("--object-crop-mask-source", default="")
     parser.add_argument("--rgb-normalization-mode", default="")
+    parser.add_argument("--eval-manifest-csv", default="")
+    parser.add_argument(
+        "--conditioning-ablation",
+        default="none",
+        choices=[
+            "none",
+            "drop_ir",
+            "drop_pointcloud",
+            "drop_crossmodal",
+            "missing_ir",
+            "missing_pointcloud",
+        ],
+    )
+    parser.add_argument("--descriptor-noise-sigma", type=float, default=0.0)
     parser.add_argument("--output-root", default="runs")
     parser.add_argument("--run-name", default="")
     parser.add_argument("--max-eval-batches", type=int, default=0)
@@ -148,6 +162,9 @@ def main() -> None:
         object_crop_mask_source=args.object_crop_mask_source
         or str(data_cfg.get("object_crop_mask_source", "rgb_then_pc_density")),
         rgb_normalization_mode=args.rgb_normalization_mode or str(data_cfg.get("rgb_normalization_mode", "none")),
+        eval_manifest_csv=args.eval_manifest_csv or None,
+        conditioning_ablation=args.conditioning_ablation,
+        descriptor_noise_sigma=args.descriptor_noise_sigma,
         output_root=args.output_root,
         run_name=args.run_name or None,
         max_eval_batches=args.max_eval_batches,
