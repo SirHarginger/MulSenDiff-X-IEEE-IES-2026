@@ -17,8 +17,13 @@ from src.data_loader import (
     RGBNormalizationStats,
 )
 from src.explainer.evidence_builder import EvidencePackage, build_evidence_package, save_evidence_package
-from src.explainer.retriever import RetrievedContextItem, retrieve_context_for_evidence
+from src.explainer.retriever import (
+    RetrievedContextItem,
+    retrieve_context_for_evidence,
+    retrieve_reference_context_for_package,
+)
 from src.inference.anomaly_scorer import AnomalyScoreOutputs, score_batch
+from src.inference.anomaly_scorer import GlobalBranchGateCalibration
 from src.inference.global_descriptor_scoring import GlobalDescriptorCalibration
 from src.inference.localization import (
     LocalizationCalibration,
@@ -48,6 +53,7 @@ class SharedInferenceSession:
     global_vector_stats_by_category: Dict[str, GlobalVectorNormalizationStats]
     masi_calibration_by_category: Dict[str, MasiCalibration]
     global_descriptor_calibration_by_category: Dict[str, GlobalDescriptorCalibration]
+    global_branch_gate_calibration_by_category: Dict[str, GlobalBranchGateCalibration]
     localization_calibration_by_category: Dict[str, LocalizationCalibration]
     score_params: Dict[str, Any]
 
@@ -132,6 +138,16 @@ def _resolve_repo_relative_path(path_like: Path | str, repo_root: Path) -> Path:
 
 def _load_masi_calibration_map(path: Path, *, fallback_category: str) -> Dict[str, MasiCalibration]:
     payload = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(payload, dict) and not any(isinstance(value, dict) for value in payload.values()):
+        normalized_payload = dict(payload)
+        normalized_payload.setdefault("category", fallback_category)
+        normalized_payload.setdefault("score_mode", "noise_error")
+        normalized_payload.setdefault("sample_count", 0)
+        normalized_payload.setdefault("mean", 0.0)
+        normalized_payload.setdefault("std", 1.0)
+        normalized_payload.setdefault("q50", 0.0)
+        normalized_payload.setdefault("q95", float(normalized_payload.get("q95", 0.0)))
+        return {fallback_category: MasiCalibration.from_dict(normalized_payload)}
     if isinstance(payload, dict) and "category" in payload and "score_mode" in payload:
         return {fallback_category: MasiCalibration.from_dict(payload)}
     return {
@@ -167,6 +183,22 @@ def _load_localization_calibration_map(
         return {fallback_category: calibration}
     return {
         str(category): LocalizationCalibration.from_dict(stats)
+        for category, stats in payload.items()
+        if isinstance(stats, dict)
+    }
+
+
+def _load_global_branch_gate_calibration_map(
+    path: Path,
+    *,
+    fallback_category: str,
+) -> Dict[str, GlobalBranchGateCalibration]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(payload, dict) and "category" in payload and "spatial_score_q95" in payload:
+        calibration = GlobalBranchGateCalibration.from_dict(payload)
+        return {fallback_category: calibration}
+    return {
+        str(category): GlobalBranchGateCalibration.from_dict(stats)
         for category, stats in payload.items()
         if isinstance(stats, dict)
     }
@@ -234,7 +266,7 @@ def load_shared_inference_session(
             )
 
     model = build_model(
-        descriptor_channels=int(config.get("descriptor_channels", 7)),
+        descriptor_channels=int(config.get("conditioning_channels", config.get("descriptor_channels", 7))),
         global_dim=int(config.get("global_dim", 10)),
         base_channels=int(config.get("base_channels", 32)),
         global_embedding_dim=int(config.get("global_embedding_dim", 128)),
@@ -274,6 +306,12 @@ def load_shared_inference_session(
             eval_run_root / "evidence" / "global_descriptor_calibration.json",
             fallback_category=fallback_category,
         ),
+        global_branch_gate_calibration_by_category=_load_global_branch_gate_calibration_map(
+            eval_run_root / "evidence" / "global_branch_gate_calibration.json",
+            fallback_category=fallback_category,
+        )
+        if (eval_run_root / "evidence" / "global_branch_gate_calibration.json").exists()
+        else {},
         localization_calibration_by_category=localization_calibration_by_category,
         score_params={
             "score_mode": str(eval_summary.get("score_mode", config.get("score_mode", "noise_error"))),
@@ -373,6 +411,7 @@ def run_known_sample_inference(
             lambda_descriptor_spatial=float(score_params["lambda_descriptor_spatial"]),
             lambda_descriptor_global=float(score_params["lambda_descriptor_global"]),
             global_descriptor_calibration=session.global_descriptor_calibration_by_category,
+            global_branch_gate_calibration=session.global_branch_gate_calibration_by_category,
             object_mask_threshold=float(score_params["object_mask_threshold"]),
         )
 
@@ -449,6 +488,10 @@ def run_known_sample_inference(
     retrieved_context = retrieve_context_for_evidence(
         package,
         knowledge_base_root=Path(knowledge_base_root) if knowledge_base_root else None,
+        top_k=3,
+    ) if knowledge_base_root else retrieve_reference_context_for_package(
+        package,
+        eval_run_root=session.eval_run_root,
         top_k=3,
     )
     package_path = save_evidence_package(package, session_dir / "evidence" / "package.json")

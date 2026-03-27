@@ -1,82 +1,84 @@
-# Evidence-Grounded Explanation Module
+# Detector-To-Explainer Flow
 
 ## Goal
 
-The explanation module should not invent causes directly from raw model scores. It should convert anomaly outputs into a structured evidence bundle first, then generate a grounded explanation from that bundle.
+The explanation path exists to interpret detector evidence for an operator. It does **not** define the anomaly decision and it is **not** part of the core detector benchmark.
 
-## Inputs
+## Current Product Logic
 
-The explainer should consume:
+The product-facing explanation flow is:
 
-- category name
-- sample identifier
-- image-level anomaly score
-- localisation map
-- dominant anomaly region summary
-- infrared descriptor evidence
-- point-cloud descriptor evidence
-- cross-modal agreement indicators
-- optional retrieved manufacturing knowledge
+1. MulSenDiff-X detects and localizes an anomaly.
+2. The detector exports a structured evidence payload.
+3. Gemini optionally converts that grounded payload into an operator-facing explanation.
+
+The detector remains the source of truth.
 
 ## Evidence Package
 
-A first structured evidence payload can contain:
+The explanation input is a structured evidence package built from detector outputs such as:
 
-- `category`
-- `sample_id`
-- `score`
-- `top_regions`
-- `rgb_observations`
-- `thermal_observations`
-- `geometric_observations`
-- `cross_modal_support`
-- `confidence_notes`
-- `retrieved_context`
+- category
+- sample identifier
+- anomaly score
+- status / severity / confidence
+- affected area
+- top regions
+- RGB observations
+- thermal observations
+- geometric observations
+- cross-modal support
+- confidence notes
+- provenance and source paths
 
-This package should be serialisable and inspectable before any language generation happens.
+This package should be inspectable before any language generation happens.
 
-## Product Explanation Strategy
+## Gemini’s Role
 
-The product-facing explanation path is now:
+Gemini is:
 
-1. build a structured evidence payload from the detector
-2. optionally attach retrieved manufacturing context
-3. send only that grounded evidence to Gemini
-4. require a structured response with:
-   - `likely_cause`
-   - `why_flagged`
-   - `recommended_action`
-   - `operator_summary`
+- optional at runtime
+- product-facing
+- downstream of detection
 
-Templated explanations may still exist internally for tests or debugging, but they are not the product story and should not be presented as the serious explanation layer.
+Gemini is not:
 
-## Output Style
+- part of detector scoring
+- part of calibration
+- part of the benchmark metrics
 
-A useful explanation should answer:
+The intended structured Gemini output remains:
 
-- what looks abnormal
-- where it is located
-- which sensors support the finding
-- what defect family is most plausible
-- what action should follow
+- `likely_cause`
+- `why_flagged`
+- `recommended_action`
+- `operator_summary`
 
-## Example Structured Output
+## Benchmark Position
 
-Example Gemini output shape:
+Explanation quality should not be reported as a core detector result unless there is a real human evaluation protocol.
 
-- likely cause: localized surface damage or foreign-body contamination
-- why flagged: concentrated anomaly response with supporting thermal/geometric evidence in the dominant region
-- recommended action: manual review of the highlighted area and targeted QA recheck
-- operator summary: compact operator-facing recap of the finding
+That means:
+
+- no explanation metrics in the main detector benchmark by default
+- no mixing detector gains with explanation gains in the same claim
+- qualitative explanation examples are fine
+- quantitative explanation results need:
+  - a fixed sample set
+  - a rating rubric
+  - at least two human raters
+  - inter-rater agreement
 
 ## Guardrails
 
 The explanation layer should:
 
-- avoid claims unsupported by descriptor evidence
+- use only detector-grounded evidence
+- avoid unsupported causal claims
 - distinguish observation from hypothesis
-- mark low-confidence cases clearly
-- remain category-aware
-- abstain cleanly if Gemini is unavailable rather than substituting a product-facing scripted explanation
+- express uncertainty when evidence is mixed
+- fail clearly if Gemini is unavailable rather than pretending to be an LLM with scripted text
 
-This keeps the explanation grounded and challenge-appropriate.
+## App Note
+
+The current app is a paired-sample demo. The explanation it shows is only as trustworthy as the detector evidence produced for that matched sample.

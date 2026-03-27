@@ -2,6 +2,7 @@ from pathlib import Path
 
 import torch
 import json
+import pytest
 
 from src.data_loader import DescriptorConditioningDataset, build_training_manifests
 from src.evaluation.metrics import (
@@ -10,6 +11,8 @@ from src.evaluation.metrics import (
     image_average_precision,
     image_level_auroc,
     intersection_over_union,
+    pixel_f1_max,
+    pixel_level_average_precision,
     pixel_level_auroc,
 )
 from src.inference.anomaly_scorer import score_batch
@@ -36,7 +39,7 @@ def test_mulsendiffx_forward_and_anomaly_scoring_runtime(tmp_path: Path) -> None
         global_stats_path=manifests["global_stats_json"],
     )
 
-    samples = [dataset[0], dataset[1]]
+    samples = [dataset[0], dataset[0]]
     x_rgb = torch.stack([sample.x_rgb for sample in samples], dim=0)
     descriptor_maps = torch.stack([sample.conditioning.descriptor_maps for sample in samples], dim=0)
     support_maps = torch.stack([sample.conditioning.support_maps for sample in samples], dim=0)
@@ -45,7 +48,7 @@ def test_mulsendiffx_forward_and_anomaly_scoring_runtime(tmp_path: Path) -> None
 
     model = MulSenDiffX(
         rgb_channels=3,
-        descriptor_channels=dataset.descriptor_channels,
+        descriptor_channels=dataset.conditioning_channels,
         global_dim=dataset.global_dim,
         base_channels=8,
         global_embedding_dim=16,
@@ -54,10 +57,16 @@ def test_mulsendiffx_forward_and_anomaly_scoring_runtime(tmp_path: Path) -> None
         diffusion_steps=50,
     )
     latent = model.encode_rgb(x_rgb)
-    predicted_noise = model(latent, descriptor_maps, global_vectors, timesteps)
+    predicted_noise = model(latent, descriptor_maps, global_vectors, timesteps, support_maps=support_maps)
     assert predicted_noise.shape == latent.shape
 
-    outputs = model.training_outputs(x_rgb, descriptor_maps, global_vectors, timesteps=timesteps)
+    outputs = model.training_outputs(
+        x_rgb,
+        descriptor_maps,
+        global_vectors,
+        timesteps=timesteps,
+        support_maps=support_maps,
+    )
     assert outputs.loss.item() >= 0.0
     assert outputs.reconstructed_rgb.shape == x_rgb.shape
     assert outputs.diffusion_reconstruction_loss.item() >= 0.0
@@ -134,6 +143,8 @@ def test_basic_metrics_runtime() -> None:
         torch.ones((1, 2, 2), dtype=torch.float32),
     ]
     assert pixel_level_auroc(score_maps, target_masks, object_masks) == 1.0
+    assert pixel_level_average_precision(score_maps, target_masks, object_masks) == 1.0
+    assert pixel_f1_max(score_maps, target_masks, object_masks) == 1.0
     perfect_aupro = aupro(score_maps, target_masks, object_masks)
     assert 0.0 <= perfect_aupro <= 1.0
     assert perfect_aupro > 0.9
@@ -269,6 +280,8 @@ def test_train_model_and_evaluate_checkpoint_runtime(tmp_path: Path) -> None:
     assert train_config["seed"] == 123
     assert train_config["resolved_device"] == "cpu"
     assert Path(train_config["localization_calibration_path"]).exists()
+    assert Path(train_config["operating_calibration_path"]).exists()
+    assert Path(train_config["global_branch_gate_calibration_path"]).exists()
     assert "python_version" in train_config
     assert "torch_version" in train_config
     assert "git_commit" in train_config
@@ -291,9 +304,13 @@ def test_train_model_and_evaluate_checkpoint_runtime(tmp_path: Path) -> None:
     assert eval_result["summary"]["seed"] == 321
     assert eval_result["summary"]["resolved_device"] == "cpu"
     assert Path(eval_result["summary"]["localization_calibration_path"]).exists()
+    assert Path(eval_result["summary"]["calibration_path"]).exists()
+    assert Path(eval_result["summary"]["global_branch_gate_calibration_path"]).exists()
     assert "image_auprc" in eval_result["summary"]
     assert "pixel_auroc" in eval_result["summary"]
     assert "aupro" in eval_result["summary"]
+    assert "good_false_positive_rate" in eval_result["summary"]
+    assert "anomalous_normal_rate" in eval_result["summary"]
     image_score_data_path = Path(eval_result["summary"]["image_score_data_path"])
     assert image_score_data_path.exists()
     for plot_name in (
@@ -304,6 +321,51 @@ def test_train_model_and_evaluate_checkpoint_runtime(tmp_path: Path) -> None:
         "image_score_distribution.png",
     ):
         assert (Path(eval_result["summary"]["run_dir"]) / "plots" / plot_name).exists()
+
+
+def test_evaluate_checkpoint_reuses_training_manifests(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _build_descriptor_ready_dataset(tmp_path)
+    train_result = train_model(
+        data_root=root,
+        category="capsule",
+        epochs=1,
+        batch_size=1,
+        target_size=(16, 16),
+        device="cpu",
+        output_root=root / "runs",
+        max_train_batches=1,
+        max_eval_batches=1,
+        max_visualizations=1,
+        base_channels=8,
+        global_embedding_dim=16,
+        time_embedding_dim=16,
+        attention_heads=2,
+        diffusion_steps=50,
+        seed=123,
+        log_every_n_steps=1,
+    )
+    best_checkpoint = Path(train_result["summary"]["best_checkpoint"])
+
+    def _fail_rematerialization(*args, **kwargs):
+        raise AssertionError("evaluation should reuse the training manifests instead of rematerializing synthetic validation")
+
+    monkeypatch.setattr("src.data_loader._materialize_synthetic_validation_rows", _fail_rematerialization)
+    eval_result = evaluate_checkpoint(
+        checkpoint_path=best_checkpoint,
+        data_root=root,
+        category="capsule",
+        batch_size=1,
+        target_size=(16, 16),
+        device="cpu",
+        output_root=root / "eval_runs",
+        max_eval_batches=1,
+        max_visualizations=1,
+        enable_llm_explanations=False,
+        seed=321,
+    )
+
+    assert Path(eval_result["summary"]["run_dir"]).exists()
+    assert Path(eval_result["summary"]["global_branch_gate_calibration_path"]).exists()
 
 
 def test_cuda_first_runtime_falls_back_to_cpu(monkeypatch, tmp_path: Path) -> None:
@@ -367,6 +429,9 @@ def test_joint_train_and_eval_runtime_exports_macro_and_per_category_metrics(tmp
     summary = train_result["summary"]
     assert summary["training_mode"] == "shared_joint"
     assert summary["selected_categories"] == ["capsule", "screw"]
+    assert "best_selection_dual_constraint_satisfied" in summary
+    assert "best_max_anomalous_normal_rate" in summary
+    assert "best_max_anomalous_normal_rate_category" in summary
     best_checkpoint = Path(summary["best_checkpoint"])
     assert best_checkpoint.exists()
 
@@ -387,10 +452,15 @@ def test_joint_train_and_eval_runtime_exports_macro_and_per_category_metrics(tmp
     assert eval_summary["training_mode"] == "shared_joint"
     assert eval_summary["selected_categories"] == ["capsule", "screw"]
     assert Path(eval_summary["localization_calibration_path"]).exists()
+    assert Path(eval_summary["global_branch_gate_calibration_path"]).exists()
     assert "macro_image_auroc" in eval_summary
     assert "macro_image_auprc" in eval_summary
     assert "macro_pixel_auroc" in eval_summary
     assert "macro_aupro" in eval_summary
+    assert "macro_good_score_q95" in eval_summary
+    assert "max_anomalous_normal_rate" in eval_summary
+    assert "max_anomalous_normal_rate_category" in eval_summary
+    assert "macro_good_false_positive_rate" in eval_result["eval_summary"]
     assert (Path(eval_summary["run_dir"]) / "metrics" / "per_category.json").exists()
     assert (Path(eval_summary["run_dir"]) / "metrics" / "per_category.csv").exists()
     preview_selection_path = Path(eval_summary["preview_selection_path"])

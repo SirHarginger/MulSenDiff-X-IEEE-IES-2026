@@ -123,7 +123,14 @@ def score_batch(
         for timestep_value in timestep_values:
             timesteps = torch.full((x_rgb.shape[0],), timestep_value, device=device, dtype=torch.long)
             noisy_latent = model.q_sample(clean_latent, timesteps, noise)
-            predicted_noise = model(noisy_latent, descriptor_maps, global_vector, category_indices, timesteps)
+            predicted_noise = model(
+                noisy_latent,
+                descriptor_maps,
+                global_vector,
+                category_indices,
+                timesteps,
+                support_maps=support_maps,
+            )
             predicted_clean_latent = model.predict_x0_from_noise(noisy_latent, timesteps, predicted_noise)
             reconstructed_rgb_values.append(model.decode_latent(predicted_clean_latent))
             residual_map_values.append((reconstructed_rgb_values[-1] - x_rgb).abs().mean(dim=1, keepdim=True))

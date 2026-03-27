@@ -16,6 +16,7 @@ def test_repo_has_small_core_script_surface() -> None:
         "run_app.py",
         "run_data_pipeline.py",
         "run_evaluation.py",
+        "run_publication_export.py",
         "run_synthetic_generation.py",
         "run_training.py",
         "summarize_training_runs.py",
@@ -60,8 +61,17 @@ def test_cli_help_works_without_importing_training_runtime_eagerly() -> None:
         capture_output=True,
         text=True,
     )
+    publication_help = subprocess.run(
+        [python_bin, "scripts/run_publication_export.py", "--help"],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
     assert train_help.returncode == 0, train_help.stderr
     assert eval_help.returncode == 0, eval_help.stderr
+    assert publication_help.returncode == 0, publication_help.stderr
     assert "--category" in train_help.stdout
     assert "--categories" in train_help.stdout
     assert "--checkpoint" in eval_help.stdout
+    assert "--shared-eval-run" in publication_help.stdout

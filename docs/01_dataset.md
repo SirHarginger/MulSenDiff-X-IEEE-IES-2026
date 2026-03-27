@@ -1,16 +1,16 @@
-# MulSen-AD Dataset Notes
+# MulSen-AD Dataset And Runtime Splits
 
 ## Dataset Root
 
-The project uses the extracted dataset at:
+MulSenDiff-X expects the extracted MulSen-AD dataset at:
 
 - `data/raw/MulSen_AD`
 
-This directory should be treated as immutable raw data.
+This directory is treated as immutable raw data.
 
-## Verified Category List
+## Categories And Modalities
 
-The extracted dataset contains 15 industrial object categories:
+The local MulSen-AD layout used by this repo contains 15 categories:
 
 - `button_cell`
 - `capsule`
@@ -28,117 +28,102 @@ The extracted dataset contains 15 industrial object categories:
 - `toothbrush`
 - `zipper`
 
-## Modalities
-
-Each category contains three aligned sensing modalities:
+Each category contains aligned:
 
 - `RGB`
 - `Infrared`
 - `Pointcloud`
 
-The alignment assumption is instance-level: the RGB image, infrared image, and point cloud for a given sample correspond to the same physical part instance.
+The alignment assumption is instance-level: the RGB image, infrared image, and point cloud for a sample refer to the same physical object instance.
 
-## Split Semantics
+## Native MulSen-AD Split Semantics
 
-Each modality follows the same anomaly-detection philosophy:
+MulSen-AD itself provides:
 
-- `train/`: normal-only training data
-- `test/`: normal and anomalous evaluation data
-- `GT/`: ground-truth localisation assets for evaluation only
+- `train/`: normal-only samples
+- `test/`: normal and anomalous samples
+- `GT/`: localisation assets for evaluation only
 
-Training must remain unsupervised:
+The repo keeps the benchmark discipline:
 
-- do not train on anomalous `test/` samples
-- do not train on `GT/` masks
-- do not leak defect labels into normal-only model fitting
+- do not train on anomalous `test` samples
+- do not train on `GT` masks
+- do not use official test data for checkpoint selection
 
-## Observed Aggregate Counts
+## Repo Runtime Splits
 
-Counts from the extracted local dataset:
+MulSenDiff-X now builds four runtime subsets per category from the native dataset:
 
-| Modality | Train | Test | GT |
-| --- | ---: | ---: | ---: |
-| RGB | 1391 | 644 | 448 |
-| Infrared | 1391 | 644 | 388 |
-| Pointcloud | 1391 | 644 | 342 |
+- `train_core_good`
+- `calibration_good`
+- `synthetic_validation`
+- `official_test`
 
-Observed file extensions:
+These are **repo-generated manifests**, not extra folders inside MulSen-AD.
 
-- `png`: RGB, infrared, and some mask assets
-- `stl`: point-cloud geometry samples
-- `txt`: point-cloud GT annotations
-- `csv`: RGB GT metadata files
+### How They Are Used
 
-## Category-Level Training Counts
+- `train_core_good`
+  - deterministic subset of normal training samples used for model fitting
 
-Per-category training counts are currently consistent across modalities:
+- `calibration_good`
+  - held-out normal training subset used for operating calibration and false-positive control
 
-| Category | Train Samples per Modality |
-| --- | ---: |
-| button_cell | 90 |
-| capsule | 64 |
-| cotton | 78 |
-| cube | 110 |
-| flat_pad | 90 |
-| light | 110 |
-| nut | 118 |
-| piggy | 110 |
-| plastic_cylinder | 90 |
-| screen | 69 |
-| screw | 90 |
-| solar_panel | 90 |
-| spring_pad | 86 |
-| toothbrush | 110 |
-| zipper | 86 |
+- `synthetic_validation`
+  - synthetic anomalies generated only from `calibration_good`
+  - used for checkpoint and score-selection support
 
-## Defect Label Diversity
+- `official_test`
+  - the untouched MulSen-AD test split
+  - used only for final evaluation
 
-Defect taxonomies vary by category. Example labels include:
+In short:
 
-- `broken`
-- `broken_inside`
-- `broken_outside`
-- `color`
-- `crack`
-- `crease`
-- `foreign_body`
-- `hole`
-- `scratch`
-- `squeeze`
-- `substandard`
-- `open`
-- `label`
-- `bent`
-- `detachment_inside`
+- train on `train_core_good`
+- calibrate/select on `calibration_good + synthetic_validation`
+- evaluate on `official_test`
 
-This means the loader should not assume one shared global defect taxonomy for all categories.
+## Generated Manifest Files
+
+The runtime split builder writes manifests such as:
+
+- `train_core_good_manifest.csv`
+- `calibration_good_manifest.csv`
+- `synthetic_validation_manifest.csv`
+- `official_test_manifest.csv`
+- `selection_manifest.csv`
+
+These are generated under a run-local manifests directory so each training or evaluation run keeps its own split provenance.
+
+## Synthetic Validation
+
+The synthetic validation set is generated only from `calibration_good`, not from official test samples.
+
+Current synthetic recipe families are:
+
+- `thermal_hotspot`
+- `geometric_surface_defect`
+- `cross_modal_inconsistency`
+
+This keeps checkpoint selection off the official test split while still providing anomaly-bearing validation examples.
 
 ## Data Management Rules
 
 Use the following directory policy:
 
 - `data/raw/`: untouched source data
-- `data/processed/`: descriptors, projections, manifests, cached derived assets
-- `data/splits/`: split manifests and experiment lists
-- `data/cache/`: temporary runtime cache
+- `data/processed/`: descriptors, projections, processed samples, derived assets
+- `runs/<timestamp>_<name>/manifests/`: run-local runtime manifests
 
 Never write generated files back into `data/raw/MulSen_AD`.
 
-## Recommended Manifest Schema
+## Important Practical Note
 
-Each sample manifest row should contain:
+If a document or command refers to:
 
-- `category`
-- `sample_id`
-- `split`
-- `defect_label`
-- `is_anomalous`
-- `rgb_path`
-- `ir_path`
-- `pointcloud_path`
-- `rgb_gt_path`
-- `ir_gt_path`
-- `pointcloud_gt_path`
-- `rgb_gt_csv_path`
+- `train_core_good`
+- `calibration_good`
+- `synthetic_validation`
+- `official_test`
 
-The manifest should allow per-category training, per-modality debugging, and deterministic evaluation pairing.
+that refers to the repo’s runtime manifests, not to additional directories inside the MulSen-AD download.

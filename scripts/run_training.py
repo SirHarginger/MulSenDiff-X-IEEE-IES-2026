@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import sys
 from pathlib import Path
 
@@ -29,6 +30,11 @@ def coerce_bool_arg(value: str, fallback: bool) -> bool:
     if not value:
         return fallback
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _filter_supported_kwargs(fn, kwargs: dict) -> dict:
+    signature = inspect.signature(fn)
+    return {key: value for key, value in kwargs.items() if key in signature.parameters}
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -124,7 +130,7 @@ def main() -> None:
     selected_categories = parse_categories_arg(args.categories) if args.categories else list(selected_categories_cfg or [])
 
     epochs = args.epochs or int(training_cfg.get("epochs_long" if args.epochs_long else "epochs", 50))
-    result = train_model(
+    requested_kwargs = dict(
         data_root=args.data_root,
         category=args.category or smoke_cfg.get("category", "capsule"),
         categories=selected_categories,
@@ -197,6 +203,7 @@ def main() -> None:
         log_every_n_steps=args.log_every_n_steps or int(training_cfg.get("log_every_n_steps", 10)),
         log_to_jsonl=not args.no_jsonl if args.no_jsonl else bool(training_cfg.get("log_to_jsonl", True)),
     )
+    result = train_model(**_filter_supported_kwargs(train_model, requested_kwargs))
 
     print("run_dir:", result["summary"]["run_dir"])
     print("summary:", result["summary"])

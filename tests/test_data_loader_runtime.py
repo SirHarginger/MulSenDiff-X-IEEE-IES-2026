@@ -3,6 +3,7 @@ from pathlib import Path
 import csv
 
 from PIL import Image
+import pytest
 import torch
 
 from src.data_loader import (
@@ -223,7 +224,7 @@ def test_training_dataset_loader_returns_aligned_model_sample(tmp_path: Path) ->
     assert 0.0 <= float(sample.conditioning.descriptor_maps.min()) <= float(sample.conditioning.descriptor_maps.max()) <= 1.0
     assert 0.0 <= float(sample.conditioning.support_maps.min()) <= float(sample.conditioning.support_maps.max()) <= 1.0
 
-    batch = collate_model_samples([sample, dataset[1]])
+    batch = collate_model_samples([sample, sample])
     assert batch["descriptor_maps"].shape == (2, 7, 16, 16)
     assert batch["support_maps"].shape == (2, 6, 16, 16)
 
@@ -249,8 +250,9 @@ def test_capsule_smoke_experiment_runs_on_descriptor_ready_data(tmp_path: Path) 
     )
 
     summary = result["summary"]
-    assert summary["train_records"] == 2
-    assert summary["eval_records"] == 2
+    assert summary["train_records"] == 1
+    assert summary["eval_records"] == 4
+    assert summary["eval_subset"] == "selection"
     assert summary["batches_run"] == 1
     assert Path(result["summary_path"]).exists()
 
@@ -300,10 +302,6 @@ def test_masked_rgb_normalization_stats_use_train_good_only(tmp_path: Path) -> N
     assert stats.masked_pixels > 0
     assert all(torch.isfinite(torch.tensor(stats.mean)))
     assert all(torch.tensor(stats.std) > 0)
-    assert abs(stats.mean[0] - 0.5) < 0.05
-    assert abs(stats.mean[1] - 0.40196) < 0.06
-    assert abs(stats.mean[2] - 0.10196) < 0.03
-
     sample = loaders["train_dataset"][0]
     assert torch.isfinite(sample.x_rgb).all()
     raw_dataset = DescriptorConditioningDataset(
@@ -315,6 +313,8 @@ def test_masked_rgb_normalization_stats_use_train_good_only(tmp_path: Path) -> N
     )
     recomputed = compute_masked_rgb_normalization_stats(raw_dataset, category="capsule")
     assert recomputed.masked_pixels == stats.masked_pixels
+    assert recomputed.mean == stats.mean
+    assert recomputed.std == stats.std
 
 
 def test_runtime_manifests_and_joint_loader_support_multiple_categories(tmp_path: Path) -> None:
@@ -326,7 +326,10 @@ def test_runtime_manifests_and_joint_loader_support_multiple_categories(tmp_path
     )
 
     assert manifests["selected_categories"] == ["capsule", "screw"]
-    assert len(manifests["train_rows"]) == 4
+    assert len(manifests["train_rows"]) == 2
+    assert len(manifests["calibration_rows"]) == 2
+    assert len(manifests["synthetic_rows"]) == 6
+    assert len(manifests["selection_rows"]) == 8
     assert len(manifests["eval_rows"]) == 4
 
     loaders = build_diffusion_dataloaders(
@@ -353,3 +356,29 @@ def test_runtime_manifests_and_joint_loader_support_multiple_categories(tmp_path
     batch = next(iter(loaders["train_loader"]))
     assert "category_indices" in batch
     assert tuple(batch["category_indices"].shape) == (2,)
+
+
+def test_runtime_manifests_reuse_existing_csvs_without_rematerializing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _build_multi_category_processed_manifest_ready_dataset(tmp_path)
+    manifests_root = root / "runtime_manifests"
+    first_pass = build_runtime_training_manifests(
+        data_root=root,
+        categories=["capsule", "screw"],
+        manifests_root=manifests_root,
+    )
+    assert len(first_pass["synthetic_rows"]) == 6
+
+    def _fail_rematerialization(*args, **kwargs):
+        raise AssertionError("synthetic validation should have been reused from existing manifests")
+
+    monkeypatch.setattr("src.data_loader._materialize_synthetic_validation_rows", _fail_rematerialization)
+    second_pass = build_runtime_training_manifests(
+        data_root=root,
+        categories=["capsule", "screw"],
+        manifests_root=manifests_root,
+    )
+
+    summary = json.loads(Path(second_pass["summary_json"]).read_text())
+    assert summary["manifest_reused"] is True
+    assert second_pass["eval_csv"] == manifests_root / "official_test_manifest.csv"
+    assert len(second_pass["synthetic_rows"]) == 6

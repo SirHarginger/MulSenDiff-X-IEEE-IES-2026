@@ -150,6 +150,7 @@ class MulSenDiffX(nn.Module):
         global_vector: torch.Tensor,
         category_indices: torch.Tensor | None = None,
         timesteps: torch.Tensor | None = None,
+        support_maps: torch.Tensor | None = None,
     ) -> torch.Tensor:
         if timesteps is None:
             if category_indices is None:
@@ -158,7 +159,20 @@ class MulSenDiffX(nn.Module):
             category_indices = None
         if category_indices is None:
             category_indices = torch.zeros((noisy_latent.shape[0],), dtype=torch.long, device=noisy_latent.device)
-        descriptor_context = self.descriptor_encoder(descriptor_maps)
+        expected_descriptor_channels = int(self.descriptor_encoder.network[0].block[0].in_channels)
+        resolved_descriptor_maps = descriptor_maps
+        if descriptor_maps.shape[1] != expected_descriptor_channels:
+            if (
+                support_maps is not None
+                and descriptor_maps.shape[1] + support_maps.shape[1] == expected_descriptor_channels
+            ):
+                resolved_descriptor_maps = torch.cat([descriptor_maps, support_maps], dim=1)
+            else:
+                raise ValueError(
+                    "MulSenDiffX received descriptor maps with incompatible channel count: "
+                    f"got {descriptor_maps.shape[1]}, expected {expected_descriptor_channels}."
+                )
+        descriptor_context = self.descriptor_encoder(resolved_descriptor_maps)
         global_embedding = self.global_encoder(global_vector)
         category_embedding = self.category_embedding(category_indices.clamp_min(0))
         fused_global_embedding = self.category_global_fusion(
@@ -177,6 +191,7 @@ class MulSenDiffX(nn.Module):
         timesteps: torch.Tensor | None = None,
         noise: torch.Tensor | None = None,
         generator: torch.Generator | None = None,
+        support_maps: torch.Tensor | None = None,
     ) -> DiffusionOutputs:
         clean_latent = self.encode_rgb(clean_rgb)
         if category_indices is None:
@@ -186,7 +201,14 @@ class MulSenDiffX(nn.Module):
         if noise is None:
             noise = torch.randn(clean_latent.shape, generator=generator, device=clean_rgb.device, dtype=clean_latent.dtype)
         noisy_latent = self.q_sample(clean_latent, timesteps, noise)
-        predicted_noise = self.forward(noisy_latent, descriptor_maps, global_vector, category_indices, timesteps)
+        predicted_noise = self.forward(
+            noisy_latent,
+            descriptor_maps,
+            global_vector,
+            category_indices,
+            timesteps,
+            support_maps=support_maps,
+        )
         predicted_clean_latent = self.predict_x0_from_noise(noisy_latent, timesteps, predicted_noise)
         reconstructed_rgb = self.decode_latent(predicted_clean_latent)
         autoencoded_rgb = self.decode_latent(clean_latent)

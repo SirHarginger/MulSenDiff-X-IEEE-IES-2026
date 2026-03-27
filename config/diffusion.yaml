@@ -46,27 +46,16 @@ smoke:
 inference:
   score_mode: noise_error
   anomaly_timestep: 200
-  descriptor_weight: 0.25
-  global_descriptor_weight: 0.1
+  descriptor_weight: 0.35
+  global_descriptor_weight: 0.15
   multi_timestep_scoring_enabled: true
   multi_timestep_fractions: [0.05, 0.10, 0.20, 0.30, 0.40]
   anomaly_map_gaussian_sigma: 3.0
   lambda_residual: 1.0
   lambda_noise: 0.5
-  lambda_descriptor_spatial: 0.25
-  lambda_descriptor_global: 0.3
-  score_weight_schedule:
-    warmup_fraction: 0.4
-    warmup:
-      lambda_residual: 0.2
-      lambda_noise: 0.3
-      lambda_descriptor_spatial: 0.25
-      lambda_descriptor_global: 0.8
-    main:
-      lambda_residual: 1.0
-      lambda_noise: 0.5
-      lambda_descriptor_spatial: 0.25
-      lambda_descriptor_global: 0.3
+  lambda_descriptor_spatial: 0.35
+  lambda_descriptor_global: 0.15
+  score_weight_schedule: null
   pixel_threshold_percentile: 0.9
   object_mask_threshold: 0.02
   localization_quantile: 0.995

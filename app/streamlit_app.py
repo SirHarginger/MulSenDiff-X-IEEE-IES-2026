@@ -223,6 +223,7 @@ def extract_detected_regions(
     *,
     predicted_mask: torch.Tensor,
     anomaly_map: torch.Tensor,
+    object_mask: torch.Tensor | None = None,
     limit: int = 3,
 ) -> List[Dict[str, Any]]:
     mask = predicted_mask.detach().cpu().numpy().astype(bool)
@@ -231,6 +232,13 @@ def extract_detected_regions(
     score_map = anomaly_map.detach().cpu().numpy().astype(np.float32)
     if score_map.ndim == 3:
         score_map = score_map.squeeze(0)
+    object_region = None
+    if object_mask is not None:
+        object_region = object_mask.detach().cpu().numpy().astype(bool)
+        if object_region.ndim == 3:
+            object_region = object_region.squeeze(0)
+    object_pixels = int(object_region.sum()) if object_region is not None else int(mask.size)
+    object_pixels = max(object_pixels, 1)
 
     labeled, count = ndimage.label(mask)
     regions: List[Dict[str, Any]] = []
@@ -242,17 +250,29 @@ def extract_detected_regions(
         region_score = float(score_map[region_mask].max())
         centroid = (float(xs.mean()), float(ys.mean()))
         bbox = [int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())]
+        area_pixels = int(region_mask.sum())
+        area_percent = 100.0 * area_pixels / object_pixels
+        pattern = "broad" if area_percent >= 20.0 else "moderately concentrated" if area_percent >= 7.5 else "compact"
+        location = region_location_label(centroid, score_map.shape)
         regions.append(
             {
-                "label": region_location_label(centroid, score_map.shape),
+                "label": location,
                 "score": region_score,
                 "bbox": bbox,
                 "centroid_xy": [round(centroid[0], 1), round(centroid[1], 1)],
                 "intensity_label": region_intensity_label(region_score),
+                "area_percent": round(area_percent, 3),
+                "pattern": pattern,
+                "summary": (
+                    f"Ranked region in the {location} with {pattern} spread, "
+                    f"covering {area_percent:.2f}% of the object and scoring {region_score:.3f}."
+                ),
             }
         )
 
     regions.sort(key=lambda item: item["score"], reverse=True)
+    for index, region in enumerate(regions, start=1):
+        region["rank"] = index
     return regions[: max(limit, 1)]
 
 
@@ -348,7 +368,7 @@ def render_detected_regions(regions: Sequence[Mapping[str, Any]], package: Evide
         primary = regions[0]
         st.write(
             f"The dominant anomaly is concentrated in the **{primary['label']}** "
-            f"with {primary['intensity_label']} confidence."
+            f"with {primary['intensity_label']} confidence and affects about {float(primary.get('area_percent', 0.0)):.2f}% of the object."
         )
     elif package.top_regions:
         top_region = package.top_regions[0]
@@ -364,7 +384,7 @@ def render_detected_regions(regions: Sequence[Mapping[str, Any]], package: Evide
         for region in regions:
             st.write(
                 f"- {region['label'].title()} — {region['intensity_label']} "
-                f"(score {region['score']:.3f})"
+                f"(score {region['score']:.3f}, area {float(region.get('area_percent', 0.0)):.2f}%)"
             )
     else:
         st.write("- No connected regions extracted from the predicted mask.")
@@ -375,10 +395,18 @@ def render_detected_regions(regions: Sequence[Mapping[str, Any]], package: Evide
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-def render_root_cause_explanation(explanation: Mapping[str, Any] | None, error_message: str | None) -> None:
+def render_root_cause_explanation(
+    explanation: Mapping[str, Any] | None,
+    error_message: str | None,
+    explanation_state: str | None,
+) -> None:
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("Root-Cause Explanation")
     if explanation:
+        if explanation_state == "abstained":
+            st.info("Likely cause is uncertain for this sample. The explanation stays grounded to what the detector can support.")
+        elif explanation_state == "cautious":
+            st.info("This explanation is cautious because the detector evidence is mixed or only moderately supported.")
         st.markdown(f"**Likely cause**  \n{explanation.get('likely_cause', '')}")
         st.markdown(f"**Why flagged**  \n{explanation.get('why_flagged', '')}")
         st.markdown(f"**Recommended action**  \n{explanation.get('recommended_action', '')}")
@@ -439,6 +467,15 @@ def render_technical_details(
         if result.get("generation_paths"):
             st.markdown("**Saved Gemini outputs**")
             st.json(result["generation_paths"], expanded=False)
+        st.markdown("**Explanation support**")
+        st.json(
+            {
+                "explanation_state": result.get("explanation_state", ""),
+                "evidence_support_score": result["evidence_payload"].get("confidence", {}).get("evidence_support_score"),
+                "uncertainty_signals": result["evidence_payload"].get("uncertainty_signals", []),
+            },
+            expanded=False,
+        )
         st.markdown("**Full technical panel**")
         st.image(str(result["panel_path"]), caption="Full detector panel", use_container_width=True)
 
@@ -524,16 +561,19 @@ def main() -> None:
                     regions = extract_detected_regions(
                         predicted_mask=result["predicted_mask"],
                         anomaly_map=result["normalized_map"],
+                        object_mask=result["object_mask"],
                     )
                     evidence_payload = build_root_cause_evidence(
                         package=result["package"],
                         regions=regions,
                         evidence_bullets=evidence_bullets(result["package"]),
+                        retrieved_context=result["retrieved_context"],
                     )
 
                     explanation_output: Dict[str, Any] | None = None
                     explanation_error = ""
                     generation_paths: Dict[str, str] | None = None
+                    explanation_state = evidence_payload.get("confidence", {}).get("recommended_explanation_state", "")
                     if gemini_config.enabled:
                         try:
                             generation = generate_root_cause_explanation(
@@ -552,6 +592,7 @@ def main() -> None:
                                 generation=generation,
                             )
                             explanation_output = dict(generation["structured_output"])
+                            explanation_state = str(generation.get("explanation_state", explanation_state))
                         except Exception as exc:
                             explanation_error = str(exc)
                     else:
@@ -563,6 +604,7 @@ def main() -> None:
                         "regions": regions,
                         "evidence_payload": evidence_payload,
                         "explanation_output": explanation_output,
+                        "explanation_state": explanation_state,
                         "explanation_error": explanation_error,
                         "generation_paths": generation_paths,
                     }
@@ -577,6 +619,7 @@ def main() -> None:
     package: EvidencePackage = result["package"]
     regions = inspection_state["regions"]
     explanation_output = inspection_state["explanation_output"]
+    explanation_state = inspection_state.get("explanation_state", "")
     explanation_error = inspection_state["explanation_error"]
     generation_paths = inspection_state["generation_paths"]
     original_image = tensor_to_rgb_array(result["display_rgb"])
@@ -599,7 +642,7 @@ def main() -> None:
         st.markdown("</div>", unsafe_allow_html=True)
 
     render_detected_regions(regions, package)
-    render_root_cause_explanation(explanation_output, explanation_error)
+    render_root_cause_explanation(explanation_output, explanation_error, explanation_state)
 
     actions = st.columns([1.0, 1.0])
     compare_with_normal = actions[0].toggle("Compare with normal")

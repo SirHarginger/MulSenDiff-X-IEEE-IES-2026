@@ -1,5 +1,11 @@
 # MulSenDiff-X Retrospective And Baseline Report
 
+Historical note:
+
+- this document is project memory, not the source of truth for the current workflow
+- it records the baseline and recovery journey that led to the current system
+- for the current repo workflow, see [README.md](/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/README.md), [docs/02_architecture.md](/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/docs/02_architecture.md), and [docs/06_publication_evaluation.md](/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/docs/06_publication_evaluation.md)
+
 This document records the current state of the project, the major problems encountered during preprocessing and training, the fixes applied, the resulting category-wise baseline performance, and the main lessons that now guide the next phase of the work.
 
 It is intended to be the "project memory" document: a place to understand what the project is trying to do, what went wrong, what was fixed, what is still weak, and why the current baseline should be treated as the working reference point.

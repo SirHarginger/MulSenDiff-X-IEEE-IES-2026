@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import sys
 from pathlib import Path
 
@@ -29,6 +30,11 @@ def coerce_bool_arg(value: str, fallback: bool) -> bool:
     if not value:
         return fallback
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _filter_supported_kwargs(fn, kwargs: dict) -> dict:
+    signature = inspect.signature(fn)
+    return {key: value for key, value in kwargs.items() if key in signature.parameters}
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -118,7 +124,7 @@ def main() -> None:
     selected_categories_cfg = data_cfg.get("selected_categories", [])
     selected_categories = parse_categories_arg(args.categories) if args.categories else list(selected_categories_cfg or [])
 
-    result = evaluate_checkpoint(
+    requested_kwargs = dict(
         checkpoint_path=args.checkpoint,
         data_root=args.data_root,
         category=args.category,
@@ -174,6 +180,7 @@ def main() -> None:
         retrieval_top_k=args.retrieval_top_k or int(inference_cfg.get("retrieval_top_k", 3)),
         enable_llm_explanations=args.enable_internal_llm_debug and not args.disable_llm_explanations,
     )
+    result = evaluate_checkpoint(**_filter_supported_kwargs(evaluate_checkpoint, requested_kwargs))
 
     print("run_dir:", result["summary"]["run_dir"])
     print("summary:", result["summary"])

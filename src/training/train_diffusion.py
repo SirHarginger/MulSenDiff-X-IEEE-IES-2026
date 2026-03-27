@@ -777,6 +777,7 @@ def train_step(
             global_vector,
             category_indices=category_indices,
             generator=generator,
+            support_maps=batch.S.to(device),
         )
     if use_amp and scaler is not None:
         scaler.scale(outputs.loss).backward()
@@ -1443,7 +1444,7 @@ def run_smoke_experiment(
         raise ValueError(f"No training records available for smoke experiment category={category!r}")
 
     model = build_model(
-        descriptor_channels=train_dataset.descriptor_channels,
+        descriptor_channels=train_dataset.conditioning_channels,
         global_dim=train_dataset.global_dim,
         base_channels=base_channels,
         global_embedding_dim=global_embedding_dim,
@@ -1665,7 +1666,7 @@ def train_model(
             },
         }
     model = build_model(
-        descriptor_channels=train_dataset.descriptor_channels,
+        descriptor_channels=train_dataset.conditioning_channels,
         global_dim=train_dataset.global_dim,
         base_channels=base_channels,
         global_embedding_dim=global_embedding_dim,
@@ -2198,7 +2199,7 @@ def evaluate_checkpoint(
     joint_mode = len(category_vocabulary) > 1
 
     model = build_model(
-        descriptor_channels=eval_dataset.descriptor_channels,
+        descriptor_channels=int(checkpoint_config.get("conditioning_channels", eval_dataset.conditioning_channels)),
         global_dim=eval_dataset.global_dim,
         base_channels=int(checkpoint_config.get("base_channels", 32)),
         global_embedding_dim=int(checkpoint_config.get("global_embedding_dim", 128)),
