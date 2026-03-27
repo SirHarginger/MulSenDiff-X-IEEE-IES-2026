@@ -192,15 +192,6 @@ Most important files:
 
 Publication exports are written separately under `publication/`.
 
-## Documentation
-
-- [docs/01_dataset.md](/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/docs/01_dataset.md): dataset and runtime split notes
-- [docs/02_architecture.md](/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/docs/02_architecture.md): system design
-- [docs/03_descriptors.md](/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/docs/03_descriptors.md): descriptor pipeline
-- [docs/04_explainer.md](/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/docs/04_explainer.md): detector-to-explainer flow
-- [docs/06_publication_evaluation.md](/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/docs/06_publication_evaluation.md): publication workflow
-- [docs/05_retrospective_and_baseline_report.md](/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/docs/05_retrospective_and_baseline_report.md): historical project memory
-
 ## Sanity Checks
 
 ```bash
