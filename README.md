@@ -103,24 +103,61 @@ python scripts/run_data_pipeline.py
 ### 2. Train and evaluate one per-category reference model
 
 ```bash
-python scripts/run_training.py --category capsule --device-mode cuda
-python scripts/run_evaluation.py --checkpoint runs/<capsule_run>/checkpoints/best.pt --category capsule --device-mode cuda
+python scripts/run_training.py --category capsule --device-mode cuda --run-name capsule_percat
+python scripts/run_evaluation.py --checkpoint runs/<capsule_run>/checkpoints/best.pt --category capsule --device-mode cuda --run-name capsule_percat_eval
 ```
 
 Use `--device-mode cpu` on CPU-only machines.
 
+To run all 15 per-category reference models with consistent naming:
+
+```bash
+categories=(
+  button_cell
+  capsule
+  cotton
+  cube
+  flat_pad
+  light
+  nut
+  piggy
+  plastic_cylinder
+  screen
+  screw
+  solar_panel
+  spring_pad
+  toothbrush
+  zipper
+)
+
+for category in "${categories[@]}"; do
+  python scripts/run_training.py \
+    --category "$category" \
+    --device-mode cuda \
+    --run-name "${category}_percat"
+
+  latest_run=$(ls -td runs/*_"${category}_percat" | head -n 1)
+
+  python scripts/run_evaluation.py \
+    --checkpoint "${latest_run}/checkpoints/best.pt" \
+    --category "$category" \
+    --device-mode cuda \
+    --run-name "${category}_percat_eval"
+done
+```
+
 ### 3. Train and evaluate the shared model
 
 ```bash
-python scripts/run_training.py --categories all --device-mode cuda
-python scripts/run_evaluation.py --checkpoint runs/<shared_run>/checkpoints/best.pt --categories all --device-mode cuda
+python scripts/run_training.py --categories all --device-mode cuda --run-name all_shared
+python scripts/run_evaluation.py --checkpoint runs/<shared_run>/checkpoints/best.pt --categories all --device-mode cuda --run-name all_shared_eval
 ```
 
 ### 4. Train and evaluate the Shared-NoCat ablation
 
 ```bash
-python scripts/run_training.py --categories all --disable-category-embedding --device-mode cuda
-python scripts/run_evaluation.py --checkpoint runs/<shared_nocat_run>/checkpoints/best.pt --categories all --device-mode cuda
+python scripts/run_training.py --categories all --disable-category-embedding --device-mode cuda --run-name all_nocat
+python scripts/run_evaluation.py --checkpoint runs/<shared_nocat_run>/checkpoints/best.pt --categories all --device-mode cuda --run-name all_nocat_eval
 ```
 
 ### 5. Run evaluation-only robustness ablations
