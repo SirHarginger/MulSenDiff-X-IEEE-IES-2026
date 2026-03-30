@@ -1,0 +1,11 @@
+{
+  "category": "capsule",
+  "defect_label": "color",
+  "gt_mask_path": "data/processed/samples/capsule__test__color__000/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/capsule/Infrared/test/color/0.png",
+  "pc_source_path": "data/raw/MulSen_AD/capsule/Pointcloud/test/color/0.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/capsule/RGB/test/color/0.png",
+  "sample_id": "000",
+  "sample_name": "capsule__test__color__000",
+  "split": "test"
+}

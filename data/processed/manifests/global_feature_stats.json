@@ -1,0 +1,38 @@
+{
+  "feature_names": [
+    "ir_hotspot_area_fraction",
+    "ir_max_gradient",
+    "ir_mean_hotspot_intensity",
+    "ir_hotspot_compactness",
+    "pc_mean_curvature",
+    "pc_max_roughness",
+    "pc_p95_normal_deviation",
+    "cross_overlap_score",
+    "cross_centroid_distance",
+    "cross_inconsistency_score"
+  ],
+  "means": {
+    "cross_centroid_distance": 0.024561719968914986,
+    "cross_inconsistency_score": 0.04460064321756363,
+    "cross_overlap_score": 0.00032539060339331627,
+    "ir_hotspot_area_fraction": 0.0,
+    "ir_hotspot_compactness": 0.0,
+    "ir_max_gradient": 0.8031257390975952,
+    "ir_mean_hotspot_intensity": 0.0,
+    "pc_max_roughness": 0.8391919732093811,
+    "pc_mean_curvature": 0.04050809517502785,
+    "pc_p95_normal_deviation": 0.5579049587249756
+  },
+  "stds": {
+    "cross_centroid_distance": 0.01050066202878952,
+    "cross_inconsistency_score": 0.003603117074817419,
+    "cross_overlap_score": 9.386802412336692e-05,
+    "ir_hotspot_area_fraction": 1.0,
+    "ir_hotspot_compactness": 1.0,
+    "ir_max_gradient": 0.09430111199617386,
+    "ir_mean_hotspot_intensity": 1.0,
+    "pc_max_roughness": 0.07391500473022461,
+    "pc_mean_curvature": 0.0017649473156780005,
+    "pc_p95_normal_deviation": 0.01702246256172657
+  }
+}

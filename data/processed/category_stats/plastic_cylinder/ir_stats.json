@@ -1,0 +1,12 @@
+{
+  "global_max": 1.0,
+  "global_mean_std": 0.16432379186153412,
+  "global_min": 0.0,
+  "gradient_residual_max": 2.2807602882385254,
+  "std_floor": 0.0016432379186153412,
+  "target_size": [
+    256,
+    256
+  ],
+  "variance_residual_max": 0.16589826345443726
+}

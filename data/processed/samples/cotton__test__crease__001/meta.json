@@ -1,0 +1,11 @@
+{
+  "category": "cotton",
+  "defect_label": "crease",
+  "gt_mask_path": null,
+  "ir_source_path": "data/raw/MulSen_AD/cotton/Infrared/test/crease/1.png",
+  "pc_source_path": "data/raw/MulSen_AD/cotton/Pointcloud/test/crease/1.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/cotton/RGB/test/crease/1.png",
+  "sample_id": "001",
+  "sample_name": "cotton__test__crease__001",
+  "split": "test"
+}

@@ -1,0 +1,11 @@
+{
+  "category": "button_cell",
+  "defect_label": "color",
+  "gt_mask_path": "data/processed/samples/button_cell__test__color__002/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/button_cell/Infrared/test/color/2.png",
+  "pc_source_path": "data/raw/MulSen_AD/button_cell/Pointcloud/test/color/2.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/button_cell/RGB/test/color/2.png",
+  "sample_id": "002",
+  "sample_name": "button_cell__test__color__002",
+  "split": "test"
+}

@@ -1,0 +1,11 @@
+{
+  "category": "button_cell",
+  "defect_label": "good",
+  "gt_mask_path": null,
+  "ir_source_path": "data/raw/MulSen_AD/button_cell/Infrared/train/47.png",
+  "pc_source_path": "data/raw/MulSen_AD/button_cell/Pointcloud/train/47.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/button_cell/RGB/train/47.png",
+  "sample_id": "047",
+  "sample_name": "button_cell__train__good__047",
+  "split": "train"
+}

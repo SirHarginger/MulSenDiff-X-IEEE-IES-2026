@@ -1,0 +1,674 @@
+{
+  "checked_manifests": 2035,
+  "error_count": 0,
+  "issue_rows": [
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/button_cell__train__good__069",
+      "severity": "warning",
+      "value": "0.372147"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/button_cell__train__good__070",
+      "severity": "warning",
+      "value": "0.052231"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/button_cell__train__good__071",
+      "severity": "warning",
+      "value": "0.421783"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/button_cell__train__good__075",
+      "severity": "warning",
+      "value": "0.212357"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/button_cell__train__good__078",
+      "severity": "warning",
+      "value": "0.360489"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cotton__train__good__000",
+      "severity": "warning",
+      "value": "0.075211"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cotton__train__good__001",
+      "severity": "warning",
+      "value": "0.071457"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cotton__train__good__002",
+      "severity": "warning",
+      "value": "0.077209"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cotton__train__good__003",
+      "severity": "warning",
+      "value": "0.076736"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cotton__train__good__004",
+      "severity": "warning",
+      "value": "0.244904"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cotton__train__good__005",
+      "severity": "warning",
+      "value": "0.073517"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cotton__train__good__008",
+      "severity": "warning",
+      "value": "0.026550"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cotton__train__good__014",
+      "severity": "warning",
+      "value": "0.020233"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cotton__train__good__016",
+      "severity": "warning",
+      "value": "0.024063"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cotton__train__good__026",
+      "severity": "warning",
+      "value": "0.111328"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cube__train__good__004",
+      "severity": "warning",
+      "value": "0.236603"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cube__train__good__017",
+      "severity": "warning",
+      "value": "0.154663"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cube__train__good__056",
+      "severity": "warning",
+      "value": "0.245560"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cube__train__good__071",
+      "severity": "warning",
+      "value": "0.029266"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cube__train__good__072",
+      "severity": "warning",
+      "value": "0.077469"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cube__train__good__077",
+      "severity": "warning",
+      "value": "0.051376"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cube__train__good__082",
+      "severity": "warning",
+      "value": "0.039627"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cube__train__good__089",
+      "severity": "warning",
+      "value": "0.177658"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cube__train__good__091",
+      "severity": "warning",
+      "value": "0.195007"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/cube__train__good__106",
+      "severity": "warning",
+      "value": "0.046555"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/flat_pad__train__good__002",
+      "severity": "warning",
+      "value": "0.803940"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/flat_pad__train__good__004",
+      "severity": "warning",
+      "value": "0.384033"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/flat_pad__train__good__042",
+      "severity": "warning",
+      "value": "0.336395"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/flat_pad__train__good__043",
+      "severity": "warning",
+      "value": "0.875656"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/flat_pad__train__good__058",
+      "severity": "warning",
+      "value": "0.147308"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/flat_pad__train__good__070",
+      "severity": "warning",
+      "value": "0.678162"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/flat_pad__train__good__075",
+      "severity": "warning",
+      "value": "0.440750"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/flat_pad__train__good__076",
+      "severity": "warning",
+      "value": "0.458954"
+    },
+    {
+      "artifact": "cross_agreement.png",
+      "message": "constant_map",
+      "sample_dir": "data/processed/samples/light__test__broken__003",
+      "severity": "warning",
+      "value": "0.000000"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/light__train__good__012",
+      "severity": "warning",
+      "value": "0.022903"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/light__train__good__013",
+      "severity": "warning",
+      "value": "0.027512"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/light__train__good__079",
+      "severity": "warning",
+      "value": "0.046356"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/piggy__train__good__029",
+      "severity": "warning",
+      "value": "0.038177"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/piggy__train__good__030",
+      "severity": "warning",
+      "value": "0.029144"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/piggy__train__good__033",
+      "severity": "warning",
+      "value": "0.094971"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/piggy__train__good__038",
+      "severity": "warning",
+      "value": "0.026382"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/piggy__train__good__039",
+      "severity": "warning",
+      "value": "0.066833"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/piggy__train__good__045",
+      "severity": "warning",
+      "value": "0.044342"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/piggy__train__good__053",
+      "severity": "warning",
+      "value": "0.031219"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/piggy__train__good__059",
+      "severity": "warning",
+      "value": "0.021774"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/piggy__train__good__073",
+      "severity": "warning",
+      "value": "0.073624"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/piggy__train__good__085",
+      "severity": "warning",
+      "value": "0.094223"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/piggy__train__good__092",
+      "severity": "warning",
+      "value": "0.032715"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/piggy__train__good__102",
+      "severity": "warning",
+      "value": "0.020355"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/plastic_cylinder__train__good__003",
+      "severity": "warning",
+      "value": "0.691360"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/plastic_cylinder__train__good__015",
+      "severity": "warning",
+      "value": "0.682388"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/plastic_cylinder__train__good__060",
+      "severity": "warning",
+      "value": "0.203308"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/plastic_cylinder__train__good__085",
+      "severity": "warning",
+      "value": "0.760818"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/screen__train__good__007",
+      "severity": "warning",
+      "value": "0.029083"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/screen__train__good__020",
+      "severity": "warning",
+      "value": "0.046753"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/screen__train__good__022",
+      "severity": "warning",
+      "value": "0.086182"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/screen__train__good__027",
+      "severity": "warning",
+      "value": "0.044968"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/screen__train__good__043",
+      "severity": "warning",
+      "value": "0.036652"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/screen__train__good__044",
+      "severity": "warning",
+      "value": "0.041092"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/screen__train__good__052",
+      "severity": "warning",
+      "value": "0.026855"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/screen__train__good__064",
+      "severity": "warning",
+      "value": "0.046265"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__009",
+      "severity": "warning",
+      "value": "0.048126"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__010",
+      "severity": "warning",
+      "value": "0.022995"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__014",
+      "severity": "warning",
+      "value": "0.020645"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__026",
+      "severity": "warning",
+      "value": "0.027740"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__027",
+      "severity": "warning",
+      "value": "0.020035"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__033",
+      "severity": "warning",
+      "value": "0.023651"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__038",
+      "severity": "warning",
+      "value": "0.027054"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__039",
+      "severity": "warning",
+      "value": "0.021927"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__040",
+      "severity": "warning",
+      "value": "0.047165"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__049",
+      "severity": "warning",
+      "value": "0.022018"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__062",
+      "severity": "warning",
+      "value": "0.022247"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__063",
+      "severity": "warning",
+      "value": "0.035995"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__064",
+      "severity": "warning",
+      "value": "0.050369"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__074",
+      "severity": "warning",
+      "value": "0.059601"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__075",
+      "severity": "warning",
+      "value": "0.111771"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/solar_panel__train__good__076",
+      "severity": "warning",
+      "value": "0.021606"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/toothbrush__train__good__003",
+      "severity": "warning",
+      "value": "0.039215"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/toothbrush__train__good__049",
+      "severity": "warning",
+      "value": "0.028275"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/zipper__train__good__025",
+      "severity": "warning",
+      "value": "0.030457"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/zipper__train__good__026",
+      "severity": "warning",
+      "value": "0.034546"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/zipper__train__good__027",
+      "severity": "warning",
+      "value": "0.026108"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/zipper__train__good__028",
+      "severity": "warning",
+      "value": "0.029495"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/zipper__train__good__029",
+      "severity": "warning",
+      "value": "0.033646"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/zipper__train__good__044",
+      "severity": "warning",
+      "value": "0.029648"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/zipper__train__good__051",
+      "severity": "warning",
+      "value": "0.035507"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/zipper__train__good__052",
+      "severity": "warning",
+      "value": "0.050186"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/zipper__train__good__061",
+      "severity": "warning",
+      "value": "0.041138"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/zipper__train__good__062",
+      "severity": "warning",
+      "value": "0.023026"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/zipper__train__good__075",
+      "severity": "warning",
+      "value": "0.516144"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/zipper__train__good__076",
+      "severity": "warning",
+      "value": "0.175339"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/zipper__train__good__084",
+      "severity": "warning",
+      "value": "0.630188"
+    },
+    {
+      "artifact": "global.json",
+      "message": "train_hotspot_area_fraction_high",
+      "sample_dir": "data/processed/samples/zipper__train__good__085",
+      "severity": "warning",
+      "value": "0.255219"
+    }
+  ],
+  "manifests_with_errors": 0,
+  "per_group_means": {
+    "crossmodal": {
+      "cross_inconsistency_score": 0.044629,
+      "cross_overlap_score": 0.000302
+    },
+    "infrared": {
+      "hotspot_area_fraction": 0.031846,
+      "ir_max_gradient": 0.753091
+    },
+    "pointcloud": {
+      "pc_max_roughness": 0.642124,
+      "pc_mean_curvature": 0.060232,
+      "pc_p95_normal_deviation": 0.701995
+    }
+  },
+  "warning_count": 93
+}

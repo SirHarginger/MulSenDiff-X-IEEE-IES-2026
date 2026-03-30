@@ -1,0 +1,11 @@
+{
+  "category": "button_cell",
+  "defect_label": "hole",
+  "gt_mask_path": null,
+  "ir_source_path": "data/raw/MulSen_AD/button_cell/Infrared/test/hole/6.png",
+  "pc_source_path": "data/raw/MulSen_AD/button_cell/Pointcloud/test/hole/6.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/button_cell/RGB/test/hole/6.png",
+  "sample_id": "006",
+  "sample_name": "button_cell__test__hole__006",
+  "split": "test"
+}

@@ -1,0 +1,16 @@
+{
+  "failure_count": 0,
+  "generated": {
+    "category_stats": 15,
+    "samples": 2035
+  },
+  "quality_json": "data/processed/reports/descriptor_quality_summary.json",
+  "samples_root": "data/processed/samples",
+  "selected_records": 2035,
+  "validation_json": "data/processed/reports/descriptor_validation.json",
+  "validation_summary": {
+    "checked_manifests": 2035,
+    "error_count": 134,
+    "warning_count": 134
+  }
+}

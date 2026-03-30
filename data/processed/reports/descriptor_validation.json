@@ -1,0 +1,1615 @@
+{
+  "checked_manifests": 2035,
+  "error_count": 134,
+  "rows": [
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/button_cell__test__hole__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/button_cell__test__hole__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/button_cell__test__hole__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/button_cell__test__hole__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/button_cell__test__hole__006",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/button_cell__test__hole__006",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/button_cell__test__hole__007",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/button_cell__test__hole__007",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/button_cell__test__scratch__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/button_cell__test__scratch__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/capsule__test__broken_inside__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/capsule__test__broken_inside__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/capsule__test__broken_inside__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/capsule__test__broken_inside__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/capsule__test__broken_inside__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/capsule__test__broken_inside__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/capsule__test__broken_inside__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/capsule__test__broken_inside__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/capsule__test__broken_inside__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/capsule__test__broken_inside__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/capsule__test__broken_inside__006",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/capsule__test__broken_inside__006",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/capsule__test__hole__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/capsule__test__hole__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crack__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crack__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crack__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crack__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crack__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crack__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crack__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crack__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crack__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crack__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crack__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crack__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crack__006",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crack__006",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crack__007",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crack__007",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crease__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crease__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crease__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crease__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crease__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crease__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crease__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crease__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crease__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crease__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crease__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crease__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crease__006",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crease__006",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__crease__007",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__crease__007",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__hole__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__hole__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__hole__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__hole__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__hole__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__hole__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__hole__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__hole__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__hole__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__hole__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__hole__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__hole__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__hole__006",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__hole__006",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__hole__007",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__hole__007",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__006",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__006",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__007",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cotton__test__scratch__007",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cube__test__hole__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cube__test__hole__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cube__test__hole__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cube__test__hole__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cube__test__hole__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cube__test__hole__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cube__test__scratch__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cube__test__scratch__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cube__test__scratch__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cube__test__scratch__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cube__test__scratch__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cube__test__scratch__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cube__test__scratch__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cube__test__scratch__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/cube__test__scratch__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/cube__test__scratch__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__broken__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__broken__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__broken__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__broken__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__broken__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__broken__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__broken__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__broken__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__broken__006",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__broken__006",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__color__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__color__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__color__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__color__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__color__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__color__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__006",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__006",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__007",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__007",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__008",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__detachment_inside__008",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__foreign_body__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__foreign_body__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__hole__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__hole__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__hole__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__hole__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__scratch__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__scratch__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__scratch__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__scratch__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__scratch__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__scratch__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/light__test__scratch__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/light__test__scratch__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/piggy__test__hole__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/piggy__test__hole__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__broken__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__broken__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__broken__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__broken__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__hole__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__hole__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__hole__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__hole__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__hole__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__hole__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__hole__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__hole__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__scratch__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__scratch__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__scratch__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__scratch__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__scratch__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__scratch__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__scratch__006",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__scratch__006",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__scratch__007",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/plastic_cylinder__test__scratch__007",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/screen__test__crack__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/screen__test__crack__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/screen__test__scratch__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/screen__test__scratch__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/screen__test__scratch__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/screen__test__scratch__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken__006",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken__006",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__006",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__006",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__007",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__007",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__008",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__008",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__009",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__broken_inside__009",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__006",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__006",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__007",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__color__007",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__scratch__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__scratch__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__scratch__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__scratch__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__scratch__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__scratch__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__scratch__006",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__scratch__006",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/solar_panel__test__scratch__007",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/solar_panel__test__scratch__007",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/toothbrush__test__broken__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/toothbrush__test__broken__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/toothbrush__test__broken__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/toothbrush__test__broken__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/toothbrush__test__foreign_body__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/toothbrush__test__foreign_body__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/toothbrush__test__scratch__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/toothbrush__test__scratch__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/toothbrush__test__substandard__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/toothbrush__test__substandard__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/zipper__test__crack__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/zipper__test__crack__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/zipper__test__crack__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/zipper__test__crack__005",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/zipper__test__hole__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/zipper__test__hole__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/zipper__test__hole__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/zipper__test__hole__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/zipper__test__hole__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/zipper__test__hole__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/zipper__test__scratch__000",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/zipper__test__scratch__000",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/zipper__test__scratch__001",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/zipper__test__scratch__001",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/zipper__test__scratch__002",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/zipper__test__scratch__002",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/zipper__test__scratch__003",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/zipper__test__scratch__003",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/zipper__test__scratch__004",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/zipper__test__scratch__004",
+      "severity": "warning"
+    },
+    {
+      "artifact": "gt_mask.png",
+      "message": "missing_required_file",
+      "sample_dir": "data/processed/samples/zipper__test__scratch__005",
+      "severity": "error"
+    },
+    {
+      "artifact": "meta.json",
+      "message": "missing_gt_mask_path_metadata",
+      "sample_dir": "data/processed/samples/zipper__test__scratch__005",
+      "severity": "warning"
+    }
+  ],
+  "warning_count": 134
+}

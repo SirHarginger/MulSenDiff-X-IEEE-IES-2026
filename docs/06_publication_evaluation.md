@@ -131,6 +131,11 @@ python scripts/run_training.py --categories all --disable-category-embedding --d
 python scripts/run_evaluation.py --checkpoint runs/<shared_nocat_run>/checkpoints/best.pt --categories all --device-mode cuda
 ```
 
+To confirm a run is a true `Shared-NoCat` ablation, check the saved run metadata for:
+
+- `disable_category_embedding: true`
+- `ablation_mode: "shared_nocat"`
+
 ### 3. Train and evaluate the per-category reference runs
 
 Run one category at a time, then record each eval directory in `docs/publication/percat_eval_manifest.csv`.

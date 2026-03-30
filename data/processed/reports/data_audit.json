@@ -1,0 +1,128 @@
+{
+  "categories": [
+    "button_cell",
+    "capsule",
+    "cotton",
+    "cube",
+    "flat_pad",
+    "light",
+    "nut",
+    "piggy",
+    "plastic_cylinder",
+    "screen",
+    "screw",
+    "solar_panel",
+    "spring_pad",
+    "toothbrush",
+    "zipper"
+  ],
+  "issue_count": 0,
+  "per_category": {
+    "button_cell": {
+      "anomalous_test": 31,
+      "pointcloud_gt_available": 15,
+      "rgb_gt_available": 26,
+      "test": 41,
+      "train": 90
+    },
+    "capsule": {
+      "anomalous_test": 48,
+      "pointcloud_gt_available": 33,
+      "rgb_gt_available": 41,
+      "test": 58,
+      "train": 64
+    },
+    "cotton": {
+      "anomalous_test": 40,
+      "pointcloud_gt_available": 40,
+      "rgb_gt_available": 8,
+      "test": 50,
+      "train": 78
+    },
+    "cube": {
+      "anomalous_test": 41,
+      "pointcloud_gt_available": 33,
+      "rgb_gt_available": 33,
+      "test": 51,
+      "train": 110
+    },
+    "flat_pad": {
+      "anomalous_test": 30,
+      "pointcloud_gt_available": 23,
+      "rgb_gt_available": 30,
+      "test": 40,
+      "train": 90
+    },
+    "light": {
+      "anomalous_test": 36,
+      "pointcloud_gt_available": 21,
+      "rgb_gt_available": 12,
+      "test": 46,
+      "train": 110
+    },
+    "nut": {
+      "anomalous_test": 29,
+      "pointcloud_gt_available": 14,
+      "rgb_gt_available": 29,
+      "test": 39,
+      "train": 118
+    },
+    "piggy": {
+      "anomalous_test": 30,
+      "pointcloud_gt_available": 18,
+      "rgb_gt_available": 29,
+      "test": 40,
+      "train": 110
+    },
+    "plastic_cylinder": {
+      "anomalous_test": 28,
+      "pointcloud_gt_available": 21,
+      "rgb_gt_available": 17,
+      "test": 38,
+      "train": 90
+    },
+    "screen": {
+      "anomalous_test": 32,
+      "pointcloud_gt_available": 32,
+      "rgb_gt_available": 29,
+      "test": 42,
+      "train": 69
+    },
+    "screw": {
+      "anomalous_test": 31,
+      "pointcloud_gt_available": 20,
+      "rgb_gt_available": 31,
+      "test": 41,
+      "train": 90
+    },
+    "solar_panel": {
+      "anomalous_test": 39,
+      "pointcloud_gt_available": 11,
+      "rgb_gt_available": 12,
+      "test": 49,
+      "train": 90
+    },
+    "spring_pad": {
+      "anomalous_test": 24,
+      "pointcloud_gt_available": 16,
+      "rgb_gt_available": 24,
+      "test": 34,
+      "train": 86
+    },
+    "toothbrush": {
+      "anomalous_test": 25,
+      "pointcloud_gt_available": 19,
+      "rgb_gt_available": 20,
+      "test": 35,
+      "train": 110
+    },
+    "zipper": {
+      "anomalous_test": 30,
+      "pointcloud_gt_available": 26,
+      "rgb_gt_available": 19,
+      "test": 40,
+      "train": 86
+    }
+  },
+  "record_count": 2035
+}

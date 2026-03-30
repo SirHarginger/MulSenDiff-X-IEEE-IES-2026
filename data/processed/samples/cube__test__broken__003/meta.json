@@ -1,0 +1,11 @@
+{
+  "category": "cube",
+  "defect_label": "broken",
+  "gt_mask_path": "data/processed/samples/cube__test__broken__003/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/cube/Infrared/test/broken/3.png",
+  "pc_source_path": "data/raw/MulSen_AD/cube/Pointcloud/test/broken/3.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/cube/RGB/test/broken/3.png",
+  "sample_id": "003",
+  "sample_name": "cube__test__broken__003",
+  "split": "test"
+}

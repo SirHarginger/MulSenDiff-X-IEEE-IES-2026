@@ -1,0 +1,11 @@
+{
+  "category": "capsule",
+  "defect_label": "crack",
+  "gt_mask_path": "data/processed/samples/capsule__test__crack__006/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/capsule/Infrared/test/crack/6.png",
+  "pc_source_path": "data/raw/MulSen_AD/capsule/Pointcloud/test/crack/6.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/capsule/RGB/test/crack/6.png",
+  "sample_id": "006",
+  "sample_name": "capsule__test__crack__006",
+  "split": "test"
+}

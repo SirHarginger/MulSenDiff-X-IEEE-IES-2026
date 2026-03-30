@@ -86,12 +86,9 @@ cython_debug/
 .pypirc
 .cursorignore
 .cursorindexingignore
-runs/
+paper_package/
 data/raw/
-data/processed/
 data/cache/
-data/splits/*.csv
-data/splits/*.json
 !data/splits/README.md
 marimo/_static/
 marimo/_lsp/

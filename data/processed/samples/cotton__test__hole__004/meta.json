@@ -1,0 +1,11 @@
+{
+  "category": "cotton",
+  "defect_label": "hole",
+  "gt_mask_path": null,
+  "ir_source_path": "data/raw/MulSen_AD/cotton/Infrared/test/hole/4.png",
+  "pc_source_path": "data/raw/MulSen_AD/cotton/Pointcloud/test/hole/4.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/cotton/RGB/test/hole/4.png",
+  "sample_id": "004",
+  "sample_name": "cotton__test__hole__004",
+  "split": "test"
+}

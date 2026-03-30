@@ -1,0 +1,11 @@
+{
+  "category": "flat_pad",
+  "defect_label": "broken",
+  "gt_mask_path": "data/processed/samples/flat_pad__test__broken__002/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/flat_pad/Infrared/test/broken/2.png",
+  "pc_source_path": "data/raw/MulSen_AD/flat_pad/Pointcloud/test/broken/2.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/flat_pad/RGB/test/broken/2.png",
+  "sample_id": "002",
+  "sample_name": "flat_pad__test__broken__002",
+  "split": "test"
+}

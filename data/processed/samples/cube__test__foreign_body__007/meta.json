@@ -1,0 +1,11 @@
+{
+  "category": "cube",
+  "defect_label": "foreign_body",
+  "gt_mask_path": "data/processed/samples/cube__test__foreign_body__007/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/cube/Infrared/test/foreign_body/7.png",
+  "pc_source_path": "data/raw/MulSen_AD/cube/Pointcloud/test/foreign_body/7.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/cube/RGB/test/foreign_body/7.png",
+  "sample_id": "007",
+  "sample_name": "cube__test__foreign_body__007",
+  "split": "test"
+}

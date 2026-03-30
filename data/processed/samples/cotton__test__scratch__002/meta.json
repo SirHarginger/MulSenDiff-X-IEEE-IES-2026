@@ -1,0 +1,11 @@
+{
+  "category": "cotton",
+  "defect_label": "scratch",
+  "gt_mask_path": null,
+  "ir_source_path": "data/raw/MulSen_AD/cotton/Infrared/test/scratch/2.png",
+  "pc_source_path": "data/raw/MulSen_AD/cotton/Pointcloud/test/scratch/2.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/cotton/RGB/test/scratch/2.png",
+  "sample_id": "002",
+  "sample_name": "cotton__test__scratch__002",
+  "split": "test"
+}

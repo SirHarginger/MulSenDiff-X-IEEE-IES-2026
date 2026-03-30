@@ -1,0 +1,11 @@
+{
+  "category": "cotton",
+  "defect_label": "good",
+  "gt_mask_path": null,
+  "ir_source_path": "data/raw/MulSen_AD/cotton/Infrared/train/57.png",
+  "pc_source_path": "data/raw/MulSen_AD/cotton/Pointcloud/train/57.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/cotton/RGB/train/57.png",
+  "sample_id": "057",
+  "sample_name": "cotton__train__good__057",
+  "split": "train"
+}

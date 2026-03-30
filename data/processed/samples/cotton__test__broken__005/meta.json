@@ -1,0 +1,11 @@
+{
+  "category": "cotton",
+  "defect_label": "broken",
+  "gt_mask_path": "data/processed/samples/cotton__test__broken__005/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/cotton/Infrared/test/broken/5.png",
+  "pc_source_path": "data/raw/MulSen_AD/cotton/Pointcloud/test/broken/5.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/cotton/RGB/test/broken/5.png",
+  "sample_id": "005",
+  "sample_name": "cotton__test__broken__005",
+  "split": "test"
+}

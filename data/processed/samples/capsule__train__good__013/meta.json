@@ -1,0 +1,11 @@
+{
+  "category": "capsule",
+  "defect_label": "good",
+  "gt_mask_path": null,
+  "ir_source_path": "data/raw/MulSen_AD/capsule/Infrared/train/13.png",
+  "pc_source_path": "data/raw/MulSen_AD/capsule/Pointcloud/train/13.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/capsule/RGB/train/13.png",
+  "sample_id": "013",
+  "sample_name": "capsule__train__good__013",
+  "split": "train"
+}

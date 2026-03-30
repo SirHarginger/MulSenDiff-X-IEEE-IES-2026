@@ -1,0 +1,11 @@
+{
+  "category": "flat_pad",
+  "defect_label": "foreign_body",
+  "gt_mask_path": "data/processed/samples/flat_pad__test__foreign_body__000/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/flat_pad/Infrared/test/foreign_body/0.png",
+  "pc_source_path": "data/raw/MulSen_AD/flat_pad/Pointcloud/test/foreign_body/0.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/flat_pad/RGB/test/foreign_body/0.png",
+  "sample_id": "000",
+  "sample_name": "flat_pad__test__foreign_body__000",
+  "split": "test"
+}

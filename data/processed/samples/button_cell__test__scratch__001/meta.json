@@ -1,0 +1,11 @@
+{
+  "category": "button_cell",
+  "defect_label": "scratch",
+  "gt_mask_path": "data/processed/samples/button_cell__test__scratch__001/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/button_cell/Infrared/test/scratch/1.png",
+  "pc_source_path": "data/raw/MulSen_AD/button_cell/Pointcloud/test/scratch/1.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/button_cell/RGB/test/scratch/1.png",
+  "sample_id": "001",
+  "sample_name": "button_cell__test__scratch__001",
+  "split": "test"
+}

@@ -1,0 +1,11 @@
+{
+  "category": "button_cell",
+  "defect_label": "foreign_body",
+  "gt_mask_path": "data/processed/samples/button_cell__test__foreign_body__005/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/button_cell/Infrared/test/foreign_body/5.png",
+  "pc_source_path": "data/raw/MulSen_AD/button_cell/Pointcloud/test/foreign_body/5.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/button_cell/RGB/test/foreign_body/5.png",
+  "sample_id": "005",
+  "sample_name": "button_cell__test__foreign_body__005",
+  "split": "test"
+}

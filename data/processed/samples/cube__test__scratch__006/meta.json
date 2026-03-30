@@ -1,0 +1,11 @@
+{
+  "category": "cube",
+  "defect_label": "scratch",
+  "gt_mask_path": "data/processed/samples/cube__test__scratch__006/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/cube/Infrared/test/scratch/6.png",
+  "pc_source_path": "data/raw/MulSen_AD/cube/Pointcloud/test/scratch/6.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/cube/RGB/test/scratch/6.png",
+  "sample_id": "006",
+  "sample_name": "cube__test__scratch__006",
+  "split": "test"
+}

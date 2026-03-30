@@ -1,0 +1,11 @@
+{
+  "category": "cube",
+  "defect_label": "good",
+  "gt_mask_path": null,
+  "ir_source_path": "data/raw/MulSen_AD/cube/Infrared/train/15.png",
+  "pc_source_path": "data/raw/MulSen_AD/cube/Pointcloud/train/15.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/cube/RGB/train/15.png",
+  "sample_id": "015",
+  "sample_name": "cube__train__good__015",
+  "split": "train"
+}

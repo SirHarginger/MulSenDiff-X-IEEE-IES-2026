@@ -1,0 +1,11 @@
+{
+  "category": "capsule",
+  "defect_label": "broken_outside",
+  "gt_mask_path": "data/processed/samples/capsule__test__broken_outside__002/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/capsule/Infrared/test/broken_outside/2.png",
+  "pc_source_path": "data/raw/MulSen_AD/capsule/Pointcloud/test/broken_outside/2.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/capsule/RGB/test/broken_outside/2.png",
+  "sample_id": "002",
+  "sample_name": "capsule__test__broken_outside__002",
+  "split": "test"
+}

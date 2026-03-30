@@ -1,0 +1,11 @@
+{
+  "category": "capsule",
+  "defect_label": "broken_inside",
+  "gt_mask_path": "data/processed/samples/capsule__test__broken_inside__007/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/capsule/Infrared/test/broken_inside/7.png",
+  "pc_source_path": "data/raw/MulSen_AD/capsule/Pointcloud/test/broken_inside/7.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/capsule/RGB/test/broken_inside/7.png",
+  "sample_id": "007",
+  "sample_name": "capsule__test__broken_inside__007",
+  "split": "test"
+}

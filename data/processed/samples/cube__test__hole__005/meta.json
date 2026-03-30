@@ -1,0 +1,11 @@
+{
+  "category": "cube",
+  "defect_label": "hole",
+  "gt_mask_path": "data/processed/samples/cube__test__hole__005/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/cube/Infrared/test/hole/5.png",
+  "pc_source_path": "data/raw/MulSen_AD/cube/Pointcloud/test/hole/5.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/cube/RGB/test/hole/5.png",
+  "sample_id": "005",
+  "sample_name": "cube__test__hole__005",
+  "split": "test"
+}

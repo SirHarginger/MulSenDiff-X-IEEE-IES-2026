@@ -1,0 +1,11 @@
+{
+  "category": "capsule",
+  "defect_label": "squeeze",
+  "gt_mask_path": "data/processed/samples/capsule__test__squeeze__000/gt_mask.png",
+  "ir_source_path": "data/raw/MulSen_AD/capsule/Infrared/test/squeeze/0.png",
+  "pc_source_path": "data/raw/MulSen_AD/capsule/Pointcloud/test/squeeze/0.stl",
+  "rgb_source_path": "data/raw/MulSen_AD/capsule/RGB/test/squeeze/0.png",
+  "sample_id": "000",
+  "sample_name": "capsule__test__squeeze__000",
+  "split": "test"
+}

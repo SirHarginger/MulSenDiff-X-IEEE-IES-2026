@@ -159,6 +159,11 @@ python scripts/run_training.py --categories all --disable-category-embedding --d
 python scripts/run_evaluation.py --checkpoint runs/<shared_nocat_run>/checkpoints/best.pt --categories all --device-mode cuda --run-name all_nocat_eval
 ```
 
+`Shared` and `Shared-NoCat` both appear as shared-category runs in high-level metadata. The reliable way to identify the ablation is:
+
+- `disable_category_embedding: true`
+- `ablation_mode: "shared_nocat"`
+
 ### 5. Run evaluation-only robustness ablations
 
 Examples:

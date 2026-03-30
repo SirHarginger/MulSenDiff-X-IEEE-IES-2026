@@ -297,6 +297,16 @@ def prepare_diffusion_batch(batch: Dict[str, object]) -> DiffusionInputBatch:
     )
 
 
+def _resolve_category_conditioning_indices(
+    category_indices: torch.Tensor,
+    *,
+    disable_category_embedding: bool,
+) -> torch.Tensor:
+    if not disable_category_embedding:
+        return category_indices
+    return torch.zeros_like(category_indices)
+
+
 def _coerce_rgb_normalization_stats(
     value: RGBNormalizationStats | Dict[str, object] | None,
 ) -> RGBNormalizationStats | None:
@@ -372,11 +382,16 @@ def _validate_model_runtime(
     device: torch.device,
     use_amp: bool,
     run_backward: bool,
+    disable_category_embedding: bool = False,
 ) -> None:
     clean_rgb = batch.x_rgb.to(device)
     descriptor_maps = batch.M.to(device)
+    support_maps = batch.S.to(device)
     global_vector = batch.g.to(device)
-    category_indices = batch.category_indices.to(device)
+    category_indices = _resolve_category_conditioning_indices(
+        batch.category_indices.to(device),
+        disable_category_embedding=disable_category_embedding,
+    )
     generator = torch.Generator(device=device)
     generator.manual_seed(123)
     model.zero_grad(set_to_none=True)
@@ -389,6 +404,7 @@ def _validate_model_runtime(
                 global_vector,
                 category_indices=category_indices,
                 generator=generator,
+                support_maps=support_maps,
             )
         outputs.loss.backward()
         model.zero_grad(set_to_none=True)
@@ -402,6 +418,7 @@ def _validate_model_runtime(
                     global_vector,
                     category_indices=category_indices,
                     generator=generator,
+                    support_maps=support_maps,
                 )
     if device.type == "cuda":
         torch.cuda.synchronize(device)
@@ -413,6 +430,7 @@ def resolve_runtime(
     model: MulSenDiffX,
     validation_batch: DiffusionInputBatch,
     run_backward: bool,
+    disable_category_embedding: bool = False,
 ) -> RuntimeSettings:
     if requested_mode == "cpu":
         model.to(torch.device("cpu"))
@@ -458,6 +476,7 @@ def resolve_runtime(
             device=cuda_device,
             use_amp=True,
             run_backward=run_backward,
+            disable_category_embedding=disable_category_embedding,
         )
     except Exception as exc:
         reason = f"cuda validation failed: {exc}"
@@ -758,6 +777,7 @@ def train_step(
     optimizer: torch.optim.Optimizer,
     *,
     device: torch.device,
+    disable_category_embedding: bool = False,
     use_amp: bool = False,
     scaler: torch.cuda.amp.GradScaler | None = None,
     generator: torch.Generator | None = None,
@@ -768,7 +788,10 @@ def train_step(
     clean_rgb = batch.x_rgb.to(device)
     descriptor_maps = batch.M.to(device)
     global_vector = batch.g.to(device)
-    category_indices = batch.category_indices.to(device)
+    category_indices = _resolve_category_conditioning_indices(
+        batch.category_indices.to(device),
+        disable_category_embedding=disable_category_embedding,
+    )
 
     with _autocast_context(device, use_amp=use_amp):
         outputs = model.training_outputs(
@@ -811,6 +834,7 @@ def run_training_epoch(
     optimizer: torch.optim.Optimizer,
     *,
     device: torch.device,
+    disable_category_embedding: bool = False,
     use_amp: bool = False,
     epoch: int,
     max_batches: int = 0,
@@ -835,6 +859,7 @@ def run_training_epoch(
             batch,
             optimizer,
             device=device,
+            disable_category_embedding=disable_category_embedding,
             use_amp=use_amp,
             scaler=scaler,
             generator=generator,
@@ -901,6 +926,7 @@ def run_eval_scoring(
     loader: DataLoader,
     *,
     device: torch.device,
+    disable_category_embedding: bool = False,
     target_size: tuple[int, int],
     score_mode: str = "noise_error",
     anomaly_timestep: int = 200,
@@ -971,7 +997,10 @@ def run_eval_scoring(
             batch.M.to(device),
             batch.S.to(device),
             batch.g.to(device),
-            batch.category_indices.to(device),
+            _resolve_category_conditioning_indices(
+                batch.category_indices.to(device),
+                disable_category_embedding=disable_category_embedding,
+            ),
             categories=batch.categories,
             score_mode=score_mode,
             timestep=anomaly_timestep,
@@ -1593,6 +1622,7 @@ def train_model(
     global_embedding_dim: int = 128,
     time_embedding_dim: int = 128,
     category_embedding_dim: int = 32,
+    disable_category_embedding: bool = False,
     attention_heads: int = 4,
     multiscale_conditioning: bool = True,
     latent_channels: int = 4,
@@ -1671,7 +1701,7 @@ def train_model(
         base_channels=base_channels,
         global_embedding_dim=global_embedding_dim,
         time_embedding_dim=time_embedding_dim,
-        num_categories=max(len(category_vocabulary), 1),
+        num_categories=1 if disable_category_embedding else max(len(category_vocabulary), 1),
         category_embedding_dim=category_embedding_dim,
         attention_heads=attention_heads,
         latent_channels=latent_channels,
@@ -1688,6 +1718,7 @@ def train_model(
         model=model,
         validation_batch=prepare_diffusion_batch(next(iter(loaders["train_loader"]))),  # type: ignore[arg-type]
         run_backward=True,
+        disable_category_embedding=disable_category_embedding,
     )
     torch_device = runtime.resolved_device
     provenance = _runtime_provenance(resolved_device=torch_device, seed=seed)
@@ -1728,6 +1759,7 @@ def train_model(
             model,
             loaders["train_reference_loader"],  # type: ignore[arg-type]
             device=torch_device,
+            disable_category_embedding=disable_category_embedding,
             score_mode=score_mode,
             anomaly_timestep=anomaly_timestep,
             descriptor_weight=descriptor_weight,
@@ -1766,6 +1798,7 @@ def train_model(
             model,
             loaders["train_reference_loader"],  # type: ignore[arg-type]
             device=torch_device,
+            disable_category_embedding=disable_category_embedding,
             score_mode=score_mode,
             anomaly_timestep=anomaly_timestep,
             descriptor_weight=descriptor_weight,
@@ -1796,6 +1829,8 @@ def train_model(
         "selected_categories": selected_categories,
         "category_vocabulary": category_vocabulary,
         "training_mode": "shared_joint" if joint_mode else "single_category",
+        "disable_category_embedding": disable_category_embedding,
+        "ablation_mode": "shared_nocat" if disable_category_embedding and joint_mode else "shared" if joint_mode else "per_category",
         "epochs": epochs,
         "batch_size": batch_size,
         "target_size": target_size,
@@ -1854,7 +1889,7 @@ def train_model(
         "global_embedding_dim": global_embedding_dim,
         "time_embedding_dim": time_embedding_dim,
         "category_embedding_dim": category_embedding_dim,
-        "num_categories": max(len(category_vocabulary), 1),
+        "num_categories": 1 if disable_category_embedding else max(len(category_vocabulary), 1),
         "attention_heads": attention_heads,
         "multiscale_conditioning": multiscale_conditioning,
         "sampler_mode": loaders["sampler_mode"],
@@ -1891,6 +1926,8 @@ def train_model(
             "category": selected_categories[0] if len(selected_categories) == 1 else "shared",
             "selected_categories": selected_categories,
             "training_mode": "shared_joint" if joint_mode else "single_category",
+            "disable_category_embedding": disable_category_embedding,
+            "ablation_mode": "shared_nocat" if disable_category_embedding and joint_mode else "shared" if joint_mode else "per_category",
             "epochs": epochs,
             "device_mode": runtime.requested_mode,
             "resolved_device": str(torch_device),
@@ -1919,6 +1956,7 @@ def train_model(
             loaders["train_loader"],  # type: ignore[arg-type]
             optimizer,
             device=torch_device,
+            disable_category_embedding=disable_category_embedding,
             use_amp=runtime.use_amp,
             epoch=epoch,
             max_batches=max_train_batches,
@@ -1931,6 +1969,7 @@ def train_model(
             model,
             loaders["eval_loader"],  # type: ignore[arg-type]
             device=torch_device,
+            disable_category_embedding=disable_category_embedding,
             target_size=target_size,
             score_mode=score_mode,
             anomaly_timestep=anomaly_timestep,
@@ -2063,6 +2102,8 @@ def train_model(
         "category": selected_categories[0] if len(selected_categories) == 1 else "shared",
         "selected_categories": selected_categories,
         "training_mode": "shared_joint" if joint_mode else "single_category",
+        "disable_category_embedding": disable_category_embedding,
+        "ablation_mode": "shared_nocat" if disable_category_embedding and joint_mode else "shared" if joint_mode else "per_category",
         "epochs": epochs,
         "device": str(torch_device),
         "resolved_device": str(torch_device),
@@ -2108,6 +2149,7 @@ def evaluate_checkpoint(
     target_size: tuple[int, int] = (256, 256),
     device: str = "cpu",
     device_mode: str = "",
+    disable_category_embedding: bool | None = None,
     score_mode: str = "noise_error",
     anomaly_timestep: int = 200,
     descriptor_weight: float = 0.25,
@@ -2168,6 +2210,11 @@ def evaluate_checkpoint(
     resolved_global_vector_stats_by_category = _coerce_global_vector_normalization_stats_by_category(
         checkpoint_config.get("global_vector_normalization_stats_by_category")
     )
+    resolved_disable_category_embedding = (
+        disable_category_embedding
+        if disable_category_embedding is not None
+        else bool(checkpoint_config.get("disable_category_embedding", False))
+    )
     run_paths = create_run_dir(
         output_root=output_root,
         run_name=run_name or "eval",
@@ -2204,7 +2251,7 @@ def evaluate_checkpoint(
         base_channels=int(checkpoint_config.get("base_channels", 32)),
         global_embedding_dim=int(checkpoint_config.get("global_embedding_dim", 128)),
         time_embedding_dim=int(checkpoint_config.get("time_embedding_dim", 128)),
-        num_categories=max(len(category_vocabulary), 1),
+        num_categories=1 if resolved_disable_category_embedding else max(len(category_vocabulary), 1),
         category_embedding_dim=int(checkpoint_config.get("category_embedding_dim", 32)),
         attention_heads=int(checkpoint_config.get("attention_heads", 4)),
         latent_channels=int(checkpoint_config.get("latent_channels", 4)),
@@ -2227,6 +2274,7 @@ def evaluate_checkpoint(
         model=model,
         validation_batch=prepare_diffusion_batch(next(iter(loaders["eval_loader"]))),  # type: ignore[arg-type]
         run_backward=False,
+        disable_category_embedding=resolved_disable_category_embedding,
     )
     torch_device = runtime.resolved_device
     provenance = _runtime_provenance(resolved_device=torch_device, seed=seed)
@@ -2310,6 +2358,7 @@ def evaluate_checkpoint(
             model,
             loaders["train_reference_loader"],  # type: ignore[arg-type]
             device=torch_device,
+            disable_category_embedding=resolved_disable_category_embedding,
             score_mode=resolved_score_mode,
             anomaly_timestep=anomaly_timestep,
             descriptor_weight=descriptor_weight,
@@ -2339,6 +2388,7 @@ def evaluate_checkpoint(
             model,
             loaders["train_reference_loader"],  # type: ignore[arg-type]
             device=torch_device,
+            disable_category_embedding=resolved_disable_category_embedding,
             score_mode=resolved_score_mode,
             anomaly_timestep=anomaly_timestep,
             descriptor_weight=descriptor_weight,
@@ -2382,6 +2432,7 @@ def evaluate_checkpoint(
             model,
             loaders["train_reference_loader"],  # type: ignore[arg-type]
             device=torch_device,
+            disable_category_embedding=resolved_disable_category_embedding,
             score_mode=resolved_score_mode,
             anomaly_timestep=anomaly_timestep,
             descriptor_weight=descriptor_weight,
@@ -2410,6 +2461,7 @@ def evaluate_checkpoint(
             model,
             loaders["train_reference_loader"],  # type: ignore[arg-type]
             device=torch_device,
+            disable_category_embedding=resolved_disable_category_embedding,
             score_mode=resolved_score_mode,
             anomaly_timestep=anomaly_timestep,
             descriptor_weight=descriptor_weight,
@@ -2435,6 +2487,7 @@ def evaluate_checkpoint(
         model,
         loaders["eval_loader"],  # type: ignore[arg-type]
         device=torch_device,
+        disable_category_embedding=resolved_disable_category_embedding,
         target_size=target_size,
         score_mode=resolved_score_mode,
         anomaly_timestep=anomaly_timestep,
@@ -2479,6 +2532,8 @@ def evaluate_checkpoint(
         "category": selected_categories[0] if len(selected_categories) == 1 else "shared",
         "selected_categories": selected_categories,
         "training_mode": "shared_joint" if joint_mode else "single_category",
+        "disable_category_embedding": resolved_disable_category_embedding,
+        "ablation_mode": "shared_nocat" if resolved_disable_category_embedding and joint_mode else "shared" if joint_mode else "per_category",
         "device": str(torch_device),
         "resolved_device": str(torch_device),
         "device_mode": runtime.requested_mode,
@@ -2588,6 +2643,7 @@ def collect_reference_localization_measurements_by_category(
     loader: DataLoader,
     *,
     device: torch.device,
+    disable_category_embedding: bool = False,
     score_mode: str,
     anomaly_timestep: int,
     descriptor_weight: float,
@@ -2617,7 +2673,10 @@ def collect_reference_localization_measurements_by_category(
             batch.M.to(device),
             batch.S.to(device),
             batch.g.to(device),
-            batch.category_indices.to(device),
+            _resolve_category_conditioning_indices(
+                batch.category_indices.to(device),
+                disable_category_embedding=disable_category_embedding,
+            ),
             categories=batch.categories,
             score_mode=score_mode,
             timestep=anomaly_timestep,
@@ -2669,6 +2728,7 @@ def fit_localization_reference_by_category(
     loader: DataLoader,
     *,
     device: torch.device,
+    disable_category_embedding: bool = False,
     score_mode: str,
     anomaly_timestep: int,
     descriptor_weight: float,
@@ -2692,6 +2752,7 @@ def fit_localization_reference_by_category(
         model,
         loader,
         device=device,
+        disable_category_embedding=disable_category_embedding,
         score_mode=score_mode,
         anomaly_timestep=anomaly_timestep,
         descriptor_weight=descriptor_weight,
@@ -2727,6 +2788,7 @@ def collect_reference_scores(
     loader: DataLoader,
     *,
     device: torch.device,
+    disable_category_embedding: bool = False,
     score_mode: str,
     anomaly_timestep: int,
     descriptor_weight: float,
@@ -2755,7 +2817,10 @@ def collect_reference_scores(
             batch.M.to(device),
             batch.S.to(device),
             batch.g.to(device),
-            batch.category_indices.to(device),
+            _resolve_category_conditioning_indices(
+                batch.category_indices.to(device),
+                disable_category_embedding=disable_category_embedding,
+            ),
             categories=batch.categories,
             score_mode=score_mode,
             timestep=anomaly_timestep,
@@ -2784,6 +2849,7 @@ def collect_reference_scores_by_category(
     loader: DataLoader,
     *,
     device: torch.device,
+    disable_category_embedding: bool = False,
     score_mode: str,
     anomaly_timestep: int,
     descriptor_weight: float,
@@ -2812,7 +2878,10 @@ def collect_reference_scores_by_category(
             batch.M.to(device),
             batch.S.to(device),
             batch.g.to(device),
-            batch.category_indices.to(device),
+            _resolve_category_conditioning_indices(
+                batch.category_indices.to(device),
+                disable_category_embedding=disable_category_embedding,
+            ),
             categories=batch.categories,
             score_mode=score_mode,
             timestep=anomaly_timestep,

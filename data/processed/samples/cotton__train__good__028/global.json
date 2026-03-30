@@ -1,0 +1,15 @@
+{
+  "cross_alignment_max_delta": 49,
+  "cross_alignment_message": "boundary_overlap_exceeds_tolerance",
+  "cross_alignment_passed": false,
+  "cross_centroid_distance": 0.027282,
+  "cross_inconsistency_score": 0.012311,
+  "cross_overlap_score": 7.9e-05,
+  "ir_hotspot_area_fraction": 0.002197,
+  "ir_hotspot_compactness": 0.055851,
+  "ir_max_gradient": 0.642191,
+  "ir_mean_hotspot_intensity": 2.658695,
+  "pc_max_roughness": 0.316841,
+  "pc_mean_curvature": 0.105011,
+  "pc_p95_normal_deviation": 0.941217
+}
