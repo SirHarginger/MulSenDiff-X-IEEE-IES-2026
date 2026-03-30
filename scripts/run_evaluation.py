@@ -59,6 +59,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--image-size", type=int, default=0)
     parser.add_argument("--device", default="")
     parser.add_argument("--device-mode", default="")
+    parser.add_argument(
+        "--disable-category-embedding",
+        action="store_true",
+        help="Override checkpoint config and disable category identity during evaluation.",
+    )
     parser.add_argument("--score-mode", default="")
     parser.add_argument("--anomaly-timestep", type=int, default=0)
     parser.add_argument("--descriptor-weight", type=float, default=0.0)
@@ -133,6 +138,7 @@ def main() -> None:
         target_size=(args.image_size or int(data_cfg.get("image_size", 256)),) * 2,
         device=args.device or training_cfg.get("device", "cpu"),
         device_mode=args.device_mode or str(training_cfg.get("device_mode", "")),
+        disable_category_embedding=True if args.disable_category_embedding else None,
         score_mode=args.score_mode or str(inference_cfg.get("score_mode", "noise_error")),
         anomaly_timestep=args.anomaly_timestep or int(inference_cfg.get("anomaly_timestep", 200)),
         descriptor_weight=args.descriptor_weight or float(inference_cfg.get("descriptor_weight", 0.25)),
