@@ -87,9 +87,14 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 paper_package/
-data/raw/
-data/cache/
-!data/splits/README.md
+manuscript_workspace/
+experiments/
+archive/
+runs/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+data/processed/
+data/raw/
+data/splits/
+data/cache/
