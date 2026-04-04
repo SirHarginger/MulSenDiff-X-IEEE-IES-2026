@@ -125,8 +125,15 @@ def load_inference_session_cached(eval_run_root_str: str) -> SharedInferenceSess
 
 
 @st.cache_data(show_spinner=False)
-def load_known_records_cached(categories: tuple[str, ...]) -> List[ProcessedSampleRecord]:
-    return find_known_processed_samples(REPO_ROOT, categories=categories)
+def load_known_records_cached(
+    categories: tuple[str, ...],
+    processed_root_str: str = "",
+) -> List[ProcessedSampleRecord]:
+    return find_known_processed_samples(
+        REPO_ROOT,
+        categories=categories,
+        processed_root=processed_root_str or None,
+    )
 
 
 def tensor_to_rgb_array(tensor: torch.Tensor) -> np.ndarray:
@@ -339,6 +346,14 @@ def build_download_report(
                 f"- Operator summary: {explanation.get('operator_summary', '')}",
             ]
         )
+        citations = explanation.get("supporting_citations", [])
+        if citations:
+            lines.append("- Supporting citations:")
+            for citation in citations:
+                lines.append(
+                    f"  - {citation.get('title', '')} ({citation.get('source', '')}): "
+                    f"{citation.get('snippet', '')} [{citation.get('relevance_reason', '')}]"
+                )
     else:
         lines.append("- Gemini explanation unavailable for this inspection.")
     return "\n".join(lines)
@@ -411,6 +426,14 @@ def render_root_cause_explanation(
         st.markdown(f"**Why flagged**  \n{explanation.get('why_flagged', '')}")
         st.markdown(f"**Recommended action**  \n{explanation.get('recommended_action', '')}")
         st.caption(str(explanation.get("operator_summary", "")))
+        citations = explanation.get("supporting_citations", [])
+        if citations:
+            st.markdown("**Supporting citations**")
+            for citation in citations:
+                st.markdown(
+                    f"- {citation.get('title', '')} ({citation.get('source', '')}): "
+                    f"{citation.get('snippet', '')} [{citation.get('relevance_reason', '')}]"
+                )
     else:
         st.warning(error_message or "Gemini explanation is unavailable for this inspection.")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -452,8 +475,8 @@ def render_technical_details(
             },
             expanded=False,
         )
-        st.markdown("**Structured evidence payload sent to Gemini**")
-        st.json(result["evidence_payload"], expanded=False)
+        st.markdown("**Explainer context pack**")
+        st.json(result.get("explanation_context_pack", result["evidence_payload"]), expanded=False)
         st.markdown("**Detected regions**")
         st.json(list(regions), expanded=False)
         st.markdown("**Evidence package**")
@@ -499,9 +522,9 @@ def resolve_gemini_status(
 def main() -> None:
     inject_styles()
 
-    evaluation_runs = find_available_evaluation_runs(REPO_ROOT / "runs")
+    evaluation_runs = find_available_evaluation_runs(REPO_ROOT)
     if not evaluation_runs:
-        st.error("No evaluation runs were found under runs/. Evaluate the shared checkpoint first.")
+        st.error("No app-ready model bundles or evaluation runs were found under model/ or runs/.")
         return
 
     st.sidebar.subheader("Model Source")
@@ -510,7 +533,10 @@ def main() -> None:
     selected_run = run_lookup[selected_run_name]
     bundle = load_eval_bundle_cached(str(selected_run.root))
     session = load_inference_session_cached(str(selected_run.root))
-    known_records = load_known_records_cached(tuple(session.category_vocabulary))
+    known_records = load_known_records_cached(
+        tuple(session.category_vocabulary),
+        str(session.config.get("processed_root") or session.eval_summary.get("processed_root", "")),
+    )
     gemini_config = load_gemini_config()
     inspection_state = st.session_state.get("inspection_result")
     st.sidebar.caption(
@@ -557,6 +583,7 @@ def main() -> None:
                         session,
                         selected_record,
                         output_root=default_app_sessions_root(REPO_ROOT),
+                        knowledge_base_root=REPO_ROOT / "data" / "retrieval",
                     )
                     regions = extract_detected_regions(
                         predicted_mask=result["predicted_mask"],
@@ -573,36 +600,38 @@ def main() -> None:
                     explanation_output: Dict[str, Any] | None = None
                     explanation_error = ""
                     generation_paths: Dict[str, str] | None = None
+                    explanation_context_pack: Dict[str, Any] | None = None
                     explanation_state = evidence_payload.get("confidence", {}).get("recommended_explanation_state", "")
-                    if gemini_config.enabled:
-                        try:
-                            generation = generate_root_cause_explanation(
-                                evidence_payload,
-                                config=gemini_config,
-                                retrieved_context=result["retrieved_context"],
-                            )
-                            generation_paths = save_gemini_generation(
-                                output_root=result["session_dir"] / "gemini",
-                                sample_slug=f"{result['package'].category}_{result['package'].defect_label}_{result['package'].sample_id}",
-                                source_eval_run=session.eval_run_root,
-                                source_evidence_path=result["package_path"],
-                                package=result["package"],
-                                retrieved_context=result["retrieved_context"],
-                                prompt_payload=evidence_payload,
-                                generation=generation,
-                            )
-                            explanation_output = dict(generation["structured_output"])
-                            explanation_state = str(generation.get("explanation_state", explanation_state))
-                        except Exception as exc:
-                            explanation_error = str(exc)
-                    else:
-                        explanation_error = "Gemini is not configured. Set GOOGLE_API_KEY or GEMINI_API_KEY and rerun the inspection."
+                    try:
+                        generation = generate_root_cause_explanation(
+                            result["package"],
+                            config=gemini_config,
+                            retrieved_context=result["retrieved_context"],
+                            regions=regions,
+                            evidence_bullets=evidence_bullets(result["package"]),
+                        )
+                        generation_paths = save_gemini_generation(
+                            output_root=result["session_dir"] / "gemini",
+                            sample_slug=f"{result['package'].category}_{result['package'].defect_label}_{result['package'].sample_id}",
+                            source_eval_run=session.eval_run_root,
+                            source_evidence_path=result["package_path"],
+                            package=result["package"],
+                            retrieved_context=result["retrieved_context"],
+                            prompt_payload=generation.get("context_pack", evidence_payload),
+                            generation=generation,
+                        )
+                        explanation_output = dict(generation["structured_output"])
+                        explanation_context_pack = dict(generation.get("context_pack", {}))
+                        explanation_state = str(generation.get("explanation_state", explanation_state))
+                    except Exception as exc:
+                        explanation_error = str(exc)
 
                     st.session_state["inspection_result"] = {
                         "selected_record": selected_record,
                         "result": result,
                         "regions": regions,
                         "evidence_payload": evidence_payload,
+                        "explanation_context_pack": explanation_context_pack,
                         "explanation_output": explanation_output,
                         "explanation_state": explanation_state,
                         "explanation_error": explanation_error,

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence
 
 from src.data_loader import ProcessedSampleRecord, select_processed_sample_records
+from src.project_layout import discover_evaluation_runs, discover_training_runs
 
 
 @dataclass(frozen=True)
@@ -26,24 +27,52 @@ class AvailableTrainingRun:
     name: str
 
 
+def _ordered_existing_paths(*paths: Path) -> List[Path]:
+    ordered: List[Path] = []
+    seen: set[Path] = set()
+    for path in paths:
+        resolved = path.resolve()
+        if not path.exists() or resolved in seen:
+            continue
+        seen.add(resolved)
+        ordered.append(path)
+    return ordered
+
+
+def _infer_repo_root(start: Path) -> Path:
+    for candidate in [start, *start.parents]:
+        if (candidate / "src").exists() and (candidate / "scripts").exists():
+            return candidate
+    return start
+
+
 def find_available_evaluation_runs(runs_root: Path | str = "runs") -> List[AvailableRun]:
     runs_root = Path(runs_root)
     candidates: List[AvailableRun] = []
-    if not runs_root.exists():
-        return candidates
-
-    for run_root in sorted((path for path in runs_root.iterdir() if path.is_dir()), reverse=True):
-        summary_path = run_root / "summary.json"
-        evidence_index_path = run_root / "evidence" / "index.json"
-        calibration_path = run_root / "evidence" / "calibration.json"
-        if summary_path.exists() and evidence_index_path.exists() and calibration_path.exists():
-            candidates.append(
+    repo_root = runs_root.parent if runs_root.name in {"runs", "model"} else runs_root
+    search_roots = _ordered_existing_paths(
+        repo_root / "model",
+        repo_root / "runs",
+        runs_root if runs_root.name in {"runs", "model"} else Path("/__missing__"),
+    )
+    seen: set[Path] = set()
+    for search_root in search_roots:
+        for run_root in discover_evaluation_runs(search_root):
+            resolved = run_root.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            summary_path = run_root / "summary.json"
+            evidence_index_path = run_root / "evidence" / "index.json"
+            calibration_path = run_root / "evidence" / "calibration.json"
+            if summary_path.exists() and evidence_index_path.exists() and calibration_path.exists():
+                candidates.append(
                 AvailableRun(
                     root=run_root,
                     summary_path=summary_path,
                     evidence_index_path=evidence_index_path,
                     calibration_path=calibration_path,
-                    name=run_root.name,
+                    name=str(run_root.resolve().relative_to(repo_root.resolve())),
                 )
             )
     return candidates
@@ -52,21 +81,29 @@ def find_available_evaluation_runs(runs_root: Path | str = "runs") -> List[Avail
 def find_available_training_runs(runs_root: Path | str = "runs") -> List[AvailableTrainingRun]:
     runs_root = Path(runs_root)
     candidates: List[AvailableTrainingRun] = []
-    if not runs_root.exists():
-        return candidates
-
-    for run_root in sorted((path for path in runs_root.iterdir() if path.is_dir()), reverse=True):
-        config_path = run_root / "config.json"
-        checkpoints_dir = run_root / "checkpoints"
-        best_checkpoint_path = checkpoints_dir / "best.pt"
-        if config_path.exists() and checkpoints_dir.exists() and best_checkpoint_path.exists():
-            candidates.append(
+    repo_root = runs_root.parent if runs_root.name == "runs" else runs_root
+    search_roots = _ordered_existing_paths(
+        repo_root / "runs",
+        runs_root if runs_root.name == "runs" else Path("/__missing__"),
+    )
+    seen: set[Path] = set()
+    for search_root in search_roots:
+        for run_root in discover_training_runs(search_root):
+            resolved = run_root.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            config_path = run_root / "config.json"
+            checkpoints_dir = run_root / "checkpoints"
+            best_checkpoint_path = checkpoints_dir / "best.pt"
+            if config_path.exists() and checkpoints_dir.exists() and best_checkpoint_path.exists():
+                candidates.append(
                 AvailableTrainingRun(
                     root=run_root,
                     config_path=config_path,
                     checkpoints_dir=checkpoints_dir,
                     best_checkpoint_path=best_checkpoint_path,
-                    name=run_root.name,
+                    name=str(run_root.resolve().relative_to(repo_root.resolve())),
                 )
             )
     return candidates
@@ -119,15 +156,36 @@ def load_run_bundle(run_root: Path | str) -> Dict[str, Any]:
 
 
 def _load_checkpoint_config(run_root: Path, summary: Dict[str, Any]) -> Dict[str, Any]:
-    checkpoint_path = Path(str(summary.get("checkpoint_path", "")).strip())
-    if checkpoint_path:
-        if not checkpoint_path.is_absolute():
-            checkpoint_path = run_root.parent.parent / checkpoint_path
-        checkpoint_config_path = checkpoint_path.parent.parent / "config.json"
-        if checkpoint_config_path.exists():
-            payload = load_json(checkpoint_config_path)
-            if isinstance(payload, dict):
-                return payload
+    repo_root = _infer_repo_root(run_root)
+    checkpoint_path_value = str(summary.get("checkpoint_path", "")).strip()
+    if checkpoint_path_value:
+        checkpoint_path = Path(checkpoint_path_value)
+        candidate_paths: List[Path] = []
+        if checkpoint_path.is_absolute():
+            candidate_paths.append(checkpoint_path)
+        else:
+            candidate_paths.extend(
+                [
+                    run_root / checkpoint_path,
+                    repo_root / checkpoint_path,
+                ]
+            )
+        for resolved_checkpoint_path in candidate_paths:
+            if not resolved_checkpoint_path.exists():
+                continue
+            if (run_root / "config.json").exists() and resolved_checkpoint_path.is_relative_to(run_root):
+                payload = load_json(run_root / "config.json")
+                if isinstance(payload, dict):
+                    return payload
+            checkpoint_config_path = resolved_checkpoint_path.parent.parent / "config.json"
+            if checkpoint_config_path.exists():
+                payload = load_json(checkpoint_config_path)
+                if isinstance(payload, dict):
+                    return payload
+    if (run_root / "config.json").exists():
+        payload = load_json(run_root / "config.json")
+        if isinstance(payload, dict):
+            return payload
     return {}
 
 
@@ -241,10 +299,18 @@ def find_known_processed_samples(
     repo_root: Path | str,
     *,
     categories: Sequence[str] | None = None,
+    processed_root: Path | str | None = None,
 ) -> List[ProcessedSampleRecord]:
     repo_root = Path(repo_root)
     data_root = repo_root / "data"
-    return select_processed_sample_records(data_root=data_root, categories=categories)
+    resolved_processed_root = Path(processed_root) if processed_root is not None else None
+    if resolved_processed_root is not None and not resolved_processed_root.is_absolute():
+        resolved_processed_root = repo_root / resolved_processed_root
+    return select_processed_sample_records(
+        data_root=data_root,
+        processed_root=resolved_processed_root,
+        categories=categories,
+    )
 
 
 def format_known_sample_label(record: ProcessedSampleRecord) -> str:
