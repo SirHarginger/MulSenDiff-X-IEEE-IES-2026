@@ -36,10 +36,11 @@ def load_checkpoint(
     model: torch.nn.Module,
     optimizer: torch.optim.Optimizer | None = None,
     map_location: str | torch.device = "cpu",
+    strict: bool = True,
 ) -> Dict[str, Any]:
     with torch.serialization.safe_globals([TorchVersion]):
         payload = torch.load(Path(path), map_location=map_location, weights_only=True)
-    model.load_state_dict(payload["model_state_dict"])
+    model.load_state_dict(payload["model_state_dict"], strict=strict)
     if optimizer is not None and "optimizer_state_dict" in payload:
         optimizer.load_state_dict(payload["optimizer_state_dict"])
     return payload
