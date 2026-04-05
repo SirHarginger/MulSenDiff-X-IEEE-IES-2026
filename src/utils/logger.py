@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, Sequence
 
+from src.project_layout import build_structured_run_name
+
 
 @dataclass(frozen=True)
 class RunPaths:
@@ -23,15 +25,28 @@ def create_run_dir(
     output_root: Path | str = "runs",
     run_name: str | None = None,
     category: str | None = None,
+    regime_paper: str | None = None,
+    scope: str | None = None,
+    run_type: str | None = None,
+    label: str | None = None,
 ) -> RunPaths:
     output_root = Path(output_root)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    slug_parts = [timestamp]
-    if category:
-        slug_parts.append(category)
-    if run_name:
-        slug_parts.append(run_name)
-    root = output_root / "_".join(slug_parts)
+    if regime_paper and scope and run_type and (label or run_name):
+        root = output_root / build_structured_run_name(
+            timestamp=timestamp,
+            regime_paper=regime_paper,
+            scope=scope,
+            run_type=run_type,
+            label=label or run_name or "baseline",
+        )
+    else:
+        slug_parts = [timestamp]
+        if category:
+            slug_parts.append(category)
+        if run_name:
+            slug_parts.append(run_name)
+        root = output_root / "_".join(slug_parts)
     checkpoints = root / "checkpoints"
     plots = root / "plots"
     metrics = root / "metrics"
