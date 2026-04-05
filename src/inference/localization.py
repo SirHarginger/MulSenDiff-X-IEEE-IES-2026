@@ -24,6 +24,12 @@ class LocalizationCalibration:
     median_object_pixels: float
     min_region_area_fraction: float
     min_region_pixels: int
+    basis: str = "anomaly_map"
+    object_mask_threshold: float = 0.02
+    object_mask_dilation_kernel_size: int = 9
+    mask_closing_kernel_size: int = 0
+    fill_holes: bool = False
+    tuning_source: str = "calibration_good"
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -41,6 +47,12 @@ class LocalizationCalibration:
             median_object_pixels=float(payload["median_object_pixels"]),
             min_region_area_fraction=float(payload["min_region_area_fraction"]),
             min_region_pixels=int(payload["min_region_pixels"]),
+            basis=str(payload.get("basis", "anomaly_map")),
+            object_mask_threshold=float(payload.get("object_mask_threshold", 0.02)),
+            object_mask_dilation_kernel_size=int(payload.get("object_mask_dilation_kernel_size", 9)),
+            mask_closing_kernel_size=int(payload.get("mask_closing_kernel_size", 0)),
+            fill_holes=bool(payload.get("fill_holes", False)),
+            tuning_source=str(payload.get("tuning_source", "calibration_good")),
         )
 
 
@@ -139,6 +151,12 @@ def fit_localization_calibration(
     min_region_area_fraction: float = 0.002,
     min_region_pixels_floor: int = 4,
     sample_count: int | None = None,
+    basis: str = "anomaly_map",
+    object_mask_threshold: float = 0.02,
+    object_mask_dilation_kernel_size: int = 9,
+    mask_closing_kernel_size: int = 0,
+    fill_holes: bool = False,
+    tuning_source: str = "calibration_good",
 ) -> LocalizationCalibration:
     flattened = values.detach().flatten().float()
     if flattened.numel() == 0:
@@ -167,6 +185,12 @@ def fit_localization_calibration(
         median_object_pixels=median_object_pixels,
         min_region_area_fraction=float(min_region_area_fraction),
         min_region_pixels=resolved_min_region_pixels,
+        basis=str(basis),
+        object_mask_threshold=float(object_mask_threshold),
+        object_mask_dilation_kernel_size=int(max(object_mask_dilation_kernel_size, 1)),
+        mask_closing_kernel_size=int(max(mask_closing_kernel_size, 0)),
+        fill_holes=bool(fill_holes),
+        tuning_source=str(tuning_source),
     )
 
 
@@ -188,6 +212,8 @@ def apply_localization_calibration(
         predicted,
         object_mask=object_mask,
         min_region_pixels=calibration.min_region_pixels,
+        closing_kernel_size=calibration.mask_closing_kernel_size,
+        fill_holes=calibration.fill_holes,
     )
 
 
@@ -196,6 +222,8 @@ def remove_small_connected_components(
     *,
     object_mask: torch.Tensor | None = None,
     min_region_pixels: int = 0,
+    closing_kernel_size: int = 0,
+    fill_holes: bool = False,
 ) -> torch.Tensor:
     masks = predicted_mask.detach().cpu().float()
     if masks.ndim == 3:
@@ -209,8 +237,20 @@ def remove_small_connected_components(
     cleaned_masks: list[torch.Tensor] = []
     for sample_index in range(masks.shape[0]):
         sample_mask = masks[sample_index].squeeze(0).numpy() > 0
+        sample_object_mask = None
         if object_masks is not None:
-            sample_mask &= object_masks[sample_index].squeeze(0).numpy() > 0
+            sample_object_mask = object_masks[sample_index].squeeze(0).numpy() > 0
+            sample_mask &= sample_object_mask
+
+        if closing_kernel_size > 1:
+            structure = np.ones((int(closing_kernel_size), int(closing_kernel_size)), dtype=bool)
+            sample_mask = ndimage.binary_closing(sample_mask, structure=structure)
+
+        if fill_holes:
+            sample_mask = ndimage.binary_fill_holes(sample_mask)
+
+        if sample_object_mask is not None:
+            sample_mask &= sample_object_mask
 
         if min_region_pixels > 1:
             labeled, component_count = ndimage.label(sample_mask)
