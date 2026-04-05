@@ -14,6 +14,8 @@ from torch.utils.data import Dataset
 from torchvision.transforms import InterpolationMode
 from torchvision.transforms import functional as TF
 
+from src.project_layout import resolve_processed_root
+
 
 GLOBAL_FEATURE_NAMES = [
     "ir_hotspot_area_fraction",
@@ -110,6 +112,7 @@ class DescriptorConditioning:
     descriptor_maps: torch.Tensor
     support_maps: torch.Tensor
     global_vector: torch.Tensor
+    raw_global_vector: torch.Tensor
 
 
 @dataclass(frozen=True)
@@ -423,10 +426,11 @@ def iter_processed_sample_manifest(samples_root: Path | str) -> Iterator[Process
 def select_processed_sample_records(
     *,
     data_root: Path | str = "data",
+    processed_root: Path | str | None = None,
     categories: Sequence[str] | None = None,
 ) -> List[ProcessedSampleRecord]:
     data_root = Path(data_root)
-    samples_root = data_root / "processed" / "samples"
+    samples_root = resolve_processed_root(data_root=data_root, processed_root=processed_root) / "samples"
     selected_categories = set(_normalize_category_list(categories, samples_root=samples_root))
     rows = list(iter_processed_sample_manifest(samples_root))
     if not selected_categories:
@@ -674,6 +678,24 @@ def _materialize_synthetic_validation_rows(
             sample_id = f"{row.sample_id}_{recipe}"
             sample_name = f"{row.category}__synthetic_validation__{recipe}__{sample_id}"
             bundle_dir = output_root / sample_name
+            if _sample_is_complete(bundle_dir):
+                existing_meta = _read_json(bundle_dir / "meta.json")
+                synthetic_rows.append(
+                    ProcessedSampleRecord(
+                        category=str(existing_meta.get("category", row.category)),
+                        split=str(existing_meta.get("split", "synthetic_validation")),
+                        defect_label=str(existing_meta.get("defect_label", recipe)),
+                        sample_id=str(existing_meta.get("sample_id", sample_id)),
+                        sample_name=str(existing_meta.get("sample_name", sample_name)),
+                        sample_dir=str(bundle_dir),
+                        is_anomalous=True,
+                        gt_mask_path="",
+                        rgb_source_path=str(existing_meta.get("rgb_source_path", row.rgb_source_path)),
+                        ir_source_path=str(existing_meta.get("ir_source_path", row.ir_source_path)),
+                        pc_source_path=str(existing_meta.get("pc_source_path", row.pc_source_path)),
+                    )
+                )
+                continue
             bundle_dir.mkdir(parents=True, exist_ok=True)
 
             mask = _synthetic_mask((int(rgb.shape[1]), int(rgb.shape[2])), sample_name=row.sample_name, recipe=recipe)
@@ -729,21 +751,27 @@ def _materialize_synthetic_validation_rows(
 def build_runtime_training_manifests(
     *,
     data_root: Path | str = "data",
+    processed_root: Path | str | None = None,
     categories: Sequence[str] | None = None,
     manifests_root: Path | str | None = None,
     eval_subset: str = "official_test",
 ) -> Dict[str, object]:
     data_root = Path(data_root)
-    samples_root = data_root / "processed" / "samples"
+    resolved_processed_root = resolve_processed_root(data_root=data_root, processed_root=processed_root)
+    samples_root = resolved_processed_root / "samples"
     selected_categories = _normalize_category_list(categories, samples_root=samples_root)
-    rows = select_processed_sample_records(data_root=data_root, categories=selected_categories)
+    rows = select_processed_sample_records(
+        data_root=data_root,
+        processed_root=resolved_processed_root,
+        categories=selected_categories,
+    )
     train_good_rows = [row for row in rows if row.split == "train" and not row.is_anomalous]
     official_test_rows = [row for row in rows if row.split == "test"]
     train_core_rows, calibration_rows = _split_train_core_and_calibration(train_good_rows)
 
     resolved_manifests_root = Path(manifests_root) if manifests_root is not None else data_root / "splits"
     resolved_manifests_root.mkdir(parents=True, exist_ok=True)
-    synthetic_root = data_root / "processed" / "synthetic_validation_samples"
+    synthetic_root = resolved_processed_root / "synthetic_validation_samples"
     synthetic_rows = _materialize_synthetic_validation_rows(calibration_rows, output_root=synthetic_root)
     selection_rows = list(calibration_rows) + list(synthetic_rows)
 
@@ -770,9 +798,10 @@ def build_runtime_training_manifests(
     else:
         _write_manifest_csv(eval_csv, official_test_rows)
 
-    global_stats_json = data_root / "processed" / "manifests" / "global_feature_stats.json"
+    global_stats_json = resolved_processed_root / "manifests" / "global_feature_stats.json"
     summary = {
         "categories": selected_categories,
+        "processed_root": str(resolved_processed_root),
         "train_core_good_manifest_csv": str(train_core_csv),
         "calibration_good_manifest_csv": str(calibration_csv),
         "synthetic_validation_manifest_csv": str(synthetic_csv),
@@ -817,11 +846,13 @@ def build_training_manifests(
     descriptor_index_csv: Path | str | None = None,
     *,
     data_root: Path | str = "data",
+    processed_root: Path | str | None = None,
     categories: Sequence[str] | None = None,
 ) -> Dict[str, Path]:
     del descriptor_index_csv
     payload = build_runtime_training_manifests(
         data_root=data_root,
+        processed_root=processed_root,
         categories=categories,
         manifests_root=Path(data_root) / "splits",
     )
@@ -936,12 +967,12 @@ class DescriptorConditioningDataset(Dataset[ModelSample]):
         rgb = _normalize_rgb(rgb, resolved_rgb_stats)
 
         global_payload = _read_json(sample_dir / "global.json")
-        global_vector = torch.tensor(
+        raw_global_vector = torch.tensor(
             [float(global_payload.get(name, 0.0)) for name in GLOBAL_FEATURE_NAMES],
             dtype=torch.float32,
         )
         global_vector = _normalize_global_vector(
-            global_vector,
+            raw_global_vector,
             (self.global_vector_normalization_stats_by_category or {}).get(row["category"])
             if self.global_vector_normalization_stats_by_category
             else None,
@@ -955,6 +986,7 @@ class DescriptorConditioningDataset(Dataset[ModelSample]):
                 descriptor_maps=descriptor_maps,
                 support_maps=support_maps,
                 global_vector=global_vector,
+                raw_global_vector=raw_global_vector,
             ),
             category=row["category"],
             category_index=self.category_to_index.get(row["category"], 0),
@@ -1155,6 +1187,7 @@ def collate_model_samples(samples: Sequence[ModelSample]) -> Dict[str, object]:
         "descriptor_maps": torch.stack([sample.conditioning.descriptor_maps for sample in samples], dim=0),
         "support_maps": torch.stack([sample.conditioning.support_maps for sample in samples], dim=0),
         "global_vectors": torch.stack([sample.conditioning.global_vector for sample in samples], dim=0),
+        "raw_global_vectors": torch.stack([sample.conditioning.raw_global_vector for sample in samples], dim=0),
         "categories": [sample.category for sample in samples],
         "category_indices": torch.tensor([sample.category_index for sample in samples], dtype=torch.long),
         "defect_labels": [sample.defect_label for sample in samples],
@@ -1183,6 +1216,8 @@ def validate_model_sample(sample: ModelSample) -> List[str]:
         issues.append("support_channel_count_mismatch")
     if sample.conditioning.global_vector.shape[0] != len(GLOBAL_FEATURE_NAMES):
         issues.append("global_vector_dim_mismatch")
+    if sample.conditioning.raw_global_vector.shape[0] != len(GLOBAL_FEATURE_NAMES):
+        issues.append("raw_global_vector_dim_mismatch")
     if sample.category_index < 0:
         issues.append("category_index_negative")
     for name, tensor in {
@@ -1190,6 +1225,7 @@ def validate_model_sample(sample: ModelSample) -> List[str]:
         "descriptor_maps": sample.conditioning.descriptor_maps,
         "support_maps": sample.conditioning.support_maps,
         "global_vector": sample.conditioning.global_vector,
+        "raw_global_vector": sample.conditioning.raw_global_vector,
     }.items():
         if not torch.isfinite(tensor).all():
             issues.append(f"{name}_contains_non_finite")
