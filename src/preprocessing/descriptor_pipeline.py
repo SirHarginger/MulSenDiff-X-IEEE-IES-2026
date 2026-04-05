@@ -5,10 +5,11 @@ import json
 import shutil
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, Sequence, Set
+from typing import Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Set
 
 from PIL import Image
 
+from src.project_layout import resolve_processed_root
 from src.preprocessing.category_stats import build_category_stats
 from src.preprocessing.crossmodal_descriptors import (
     generate_crossmodal_maps,
@@ -23,7 +24,7 @@ from src.preprocessing.ir_descriptors import (
     load_ir_category_stats,
     save_grayscale_png as save_ir_png,
 )
-from src.preprocessing.pointcloud_projector import (
+from src.preprocessing.pointcloud_descriptors import (
     generate_pointcloud_sample_descriptors,
     load_pointcloud_category_stats,
 )
@@ -70,6 +71,7 @@ def select_records(
 def run_descriptor_pipeline(
     *,
     data_root: Path | str = "data",
+    processed_root: Path | str | None = None,
     index_csv: Path | str = "data/processed/manifests/dataset_index.csv",
     categories: Optional[Set[str]] = None,
     splits: Optional[Set[str]] = None,
@@ -84,6 +86,7 @@ def run_descriptor_pipeline(
 ) -> Dict[str, object]:
     data_root = Path(data_root)
     index_csv = Path(index_csv)
+    resolved_processed_root = resolve_processed_root(data_root=data_root, processed_root=processed_root)
     records = select_records(
         iter_index(index_csv),
         categories=categories,
@@ -104,6 +107,7 @@ def run_descriptor_pipeline(
     category_stats_result = build_category_stats(
         raw_root=raw_root,
         data_root=data_root,
+        processed_root=resolved_processed_root,
         categories=selected_categories,
         target_size=target_size,
         log_progress=log_progress,
@@ -113,7 +117,7 @@ def run_descriptor_pipeline(
         f"descriptor_pipeline: category stats complete for {len(category_stats_result['built_categories'])} categories",
     )
 
-    samples_root = data_root / "processed" / "samples"
+    samples_root = resolved_processed_root / "samples"
     samples_root.mkdir(parents=True, exist_ok=True)
 
     failures: List[DescriptorPipelineFailure] = []
@@ -131,7 +135,13 @@ def run_descriptor_pipeline(
                 _log(log_progress, f"descriptor_pipeline: processing sample {index}/{len(records)} {sample_dir.name}")
             if sample_dir.exists():
                 shutil.rmtree(sample_dir, ignore_errors=True)
-            materialize_sample_folder(record, data_root=data_root, sample_dir=sample_dir, target_size=target_size)
+            materialize_sample_folder(
+                record,
+                data_root=data_root,
+                processed_root=resolved_processed_root,
+                sample_dir=sample_dir,
+                target_size=target_size,
+            )
             generated_count += 1
         except Exception as exc:
             shutil.rmtree(sample_dir, ignore_errors=True)
@@ -154,19 +164,29 @@ def run_descriptor_pipeline(
 
     _log(log_progress, "descriptor_pipeline: validating generated descriptors")
     validation_summary = validate_descriptor_root(samples_root)
-    validation_csv = data_root / "processed" / "reports" / "descriptor_validation.csv"
-    validation_json = data_root / "processed" / "reports" / "descriptor_validation.json"
+    validation_csv = resolved_processed_root / "reports" / "descriptor_validation.csv"
+    validation_json = resolved_processed_root / "reports" / "descriptor_validation.json"
     write_validation_reports(validation_summary, validation_csv, validation_json)
 
     _log(log_progress, "descriptor_pipeline: auditing descriptor quality")
     quality_summary = audit_descriptor_root(samples_root)
-    quality_csv = data_root / "processed" / "reports" / "descriptor_quality.csv"
-    quality_json = data_root / "processed" / "reports" / "descriptor_quality_summary.json"
+    quality_csv = resolved_processed_root / "reports" / "descriptor_quality.csv"
+    quality_json = resolved_processed_root / "reports" / "descriptor_quality_summary.json"
     write_descriptor_audit_reports(quality_summary, quality_csv, quality_json)
 
+    _log(log_progress, "descriptor_pipeline: writing descriptor policy audit")
+    descriptor_policy_csv = resolved_processed_root / "reports" / "descriptor_policy_audit.csv"
+    descriptor_policy_json = resolved_processed_root / "reports" / "descriptor_policy_audit.json"
+    write_descriptor_policy_audit(
+        records=records,
+        processed_root=resolved_processed_root,
+        out_csv=descriptor_policy_csv,
+        out_json=descriptor_policy_json,
+    )
+
     _log(log_progress, "descriptor_pipeline: writing failure report")
-    failure_csv = data_root / "processed" / "reports" / "descriptor_pipeline_failures.csv"
-    failure_json = data_root / "processed" / "reports" / "descriptor_pipeline_failures.json"
+    failure_csv = resolved_processed_root / "reports" / "descriptor_pipeline_failures.csv"
+    failure_json = resolved_processed_root / "reports" / "descriptor_pipeline_failures.json"
     _write_failures(failures, failure_csv, failure_json)
 
     pipeline_summary = {
@@ -181,8 +201,9 @@ def run_descriptor_pipeline(
             "error_count": validation_summary["error_count"],
             "warning_count": validation_summary["warning_count"],
         },
+        "descriptor_policy_audit_json": str(descriptor_policy_json),
     }
-    pipeline_summary_path = data_root / "processed" / "reports" / "descriptor_pipeline_summary.json"
+    pipeline_summary_path = resolved_processed_root / "reports" / "descriptor_pipeline_summary.json"
     pipeline_summary_path.write_text(json.dumps(pipeline_summary, indent=2, sort_keys=True), encoding="utf-8")
 
     return {
@@ -190,9 +211,12 @@ def run_descriptor_pipeline(
         "generated": pipeline_summary["generated"],
         "failures": failures,
         "pipeline_summary_path": pipeline_summary_path,
+        "descriptor_policy_audit_json": descriptor_policy_json,
+        "descriptor_policy_audit_csv": descriptor_policy_csv,
         "samples_root": samples_root,
         "quality_summary": quality_summary,
         "category_stats": category_stats_result,
+        "processed_root": resolved_processed_root,
     }
 
 
@@ -217,14 +241,16 @@ def materialize_sample_folder(
     record: SampleRecord,
     *,
     data_root: Path | str = "data",
+    processed_root: Path | str | None = None,
     sample_dir: Path | str,
     target_size: tuple[int, int] = (256, 256),
 ) -> None:
     data_root = Path(data_root)
+    resolved_processed_root = resolve_processed_root(data_root=data_root, processed_root=processed_root)
     sample_dir = Path(sample_dir)
     sample_dir.mkdir(parents=True, exist_ok=True)
 
-    stats_dir = data_root / "processed" / "category_stats" / record.category
+    stats_dir = resolved_processed_root / "category_stats" / record.category
     ir_stats = load_ir_category_stats(stats_dir)
     pointcloud_stats = load_pointcloud_category_stats(stats_dir)
 
@@ -240,6 +266,7 @@ def materialize_sample_folder(
     pointcloud_outputs = generate_pointcloud_sample_descriptors(
         record.pointcloud_path,
         stats=pointcloud_stats,
+        category=record.category,
         projection_size=target_size,
     )
     save_ir_png(pointcloud_outputs["pc_depth"], sample_dir / "pc_depth.png")
@@ -277,6 +304,9 @@ def materialize_sample_folder(
 
     meta_payload = {
         "category": record.category,
+        "descriptor_policy": str(pointcloud_outputs.get("descriptor_policy", pointcloud_stats.get("descriptor_policy", "default_geometry"))),
+        "pointcloud_channel_semantics": dict(pointcloud_outputs.get("channel_semantics", {})),
+        "pointcloud_global_semantics": dict(pointcloud_outputs.get("global_semantics", {})),
         "split": record.split,
         "defect_label": record.defect_label,
         "sample_id": _format_sample_id(record.sample_id),
@@ -287,6 +317,73 @@ def materialize_sample_folder(
         "gt_mask_path": str(gt_mask_path) if gt_mask_path is not None else None,
     }
     (sample_dir / "meta.json").write_text(json.dumps(meta_payload, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def write_descriptor_policy_audit(
+    *,
+    records: Sequence[SampleRecord],
+    processed_root: Path,
+    out_csv: Path,
+    out_json: Path,
+) -> None:
+    grouped: Dict[str, List[SampleRecord]] = {}
+    for record in records:
+        grouped.setdefault(record.category, []).append(record)
+
+    rows: List[Dict[str, object]] = []
+    for category, category_records in sorted(grouped.items()):
+        stats_dir = processed_root / "category_stats" / category
+        payload: Mapping[str, object] = {}
+        stats_json = stats_dir / "pc_bbox_stats.json"
+        if stats_json.exists():
+            payload = json.loads(stats_json.read_text(encoding="utf-8"))
+        descriptor_policy = str(payload.get("descriptor_policy", "default_geometry"))
+        rows.append(
+            {
+                "category": category,
+                "descriptor_policy": descriptor_policy,
+                "sample_count": len(category_records),
+                "train_count": sum(1 for row in category_records if row.split == "train"),
+                "test_count": sum(1 for row in category_records if row.split == "test"),
+                "anomalous_count": sum(1 for row in category_records if row.is_anomalous),
+                "depth_reference_mean_present": int((stats_dir / "depth_reference_mean.npy").exists()),
+                "depth_reference_std_present": int((stats_dir / "depth_reference_std.npy").exists()),
+                "normal_reference_mean_present": int((stats_dir / "normal_reference_mean.npy").exists()),
+                "normal_reference_std_present": int((stats_dir / "normal_reference_std.npy").exists()),
+                "pc_curvature_semantics": str(
+                    (payload.get("pointcloud_channel_semantics", {}) or {}).get("pc_curvature", "")
+                ),
+                "pc_roughness_semantics": str(
+                    (payload.get("pointcloud_channel_semantics", {}) or {}).get("pc_roughness", "")
+                ),
+                "pc_normal_deviation_semantics": str(
+                    (payload.get("pointcloud_channel_semantics", {}) or {}).get("pc_normal_deviation", "")
+                ),
+            }
+        )
+
+    out_csv.parent.mkdir(parents=True, exist_ok=True)
+    with out_csv.open("w", newline="", encoding="utf-8") as handle:
+        fieldnames = list(rows[0].keys()) if rows else [
+            "category",
+            "descriptor_policy",
+            "sample_count",
+            "train_count",
+            "test_count",
+            "anomalous_count",
+            "depth_reference_mean_present",
+            "depth_reference_std_present",
+            "normal_reference_mean_present",
+            "normal_reference_std_present",
+            "pc_curvature_semantics",
+            "pc_roughness_semantics",
+            "pc_normal_deviation_semantics",
+        ]
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+    out_json.write_text(json.dumps(rows, indent=2, sort_keys=True), encoding="utf-8")
 
 
 def _format_sample_id(sample_id: str) -> str:

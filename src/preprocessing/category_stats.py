@@ -5,9 +5,11 @@ from typing import Callable, Dict, List, Sequence
 
 import numpy as np
 
+from src.category_policies import is_archetype_a_replace
+from src.project_layout import resolve_processed_root
 from src.preprocessing.dataset import MODALITY_SPECS
 from src.preprocessing.ir_descriptors import compute_ir_category_stats, save_ir_category_stats
-from src.preprocessing.pointcloud_projector import (
+from src.preprocessing.pointcloud_descriptors import (
     compute_category_bbox_stats,
     compute_pointcloud_feature_maps,
     save_pointcloud_category_stats,
@@ -18,14 +20,16 @@ def build_category_stats(
     *,
     raw_root: Path | str,
     data_root: Path | str = "data",
+    processed_root: Path | str | None = None,
     categories: Sequence[str] | None = None,
     target_size: tuple[int, int] = (256, 256),
     log_progress: Callable[[str], None] | None = None,
 ) -> Dict[str, object]:
     raw_root = Path(raw_root)
     data_root = Path(data_root)
+    resolved_processed_root = resolve_processed_root(data_root=data_root, processed_root=processed_root)
     categories_filter = {item for item in (categories or []) if item}
-    stats_root = data_root / "processed" / "category_stats"
+    stats_root = resolved_processed_root / "category_stats"
     stats_root.mkdir(parents=True, exist_ok=True)
 
     built_categories: list[str] = []
@@ -56,8 +60,11 @@ def build_category_stats(
         roughness_maps: list[np.ndarray] = []
         curvature_maps: list[np.ndarray] = []
         normal_maps: list[np.ndarray] = []
+        archetype_a_depth_reference_samples: list[np.ndarray] = []
+        archetype_a_normal_reference_samples: list[np.ndarray] = []
         feature_maps_by_path: dict[str, Dict[str, np.ndarray]] = {}
         density_max = 1.0
+        descriptor_policy = "residual_reference" if is_archetype_a_replace(category) else "default_geometry"
 
         _log(log_progress, f"category_stats:{category}: point-cloud feature pass 1/2")
         for index, path in enumerate(pointcloud_paths, start=1):
@@ -74,6 +81,9 @@ def build_category_stats(
             curvature_maps.append(feature_maps["curvature"])
             normal_maps.append(feature_maps["normal_map"])
             density_max = max(density_max, float(feature_maps["density"].max()))
+            if is_archetype_a_replace(category):
+                archetype_a_depth_reference_samples.append(feature_maps["depth"])
+                archetype_a_normal_reference_samples.append(feature_maps["normal_map"])
 
         depth_mean = np.stack(depth_maps, axis=0).mean(axis=0).astype(np.float32)
         roughness_mean = np.stack(roughness_maps, axis=0).mean(axis=0).astype(np.float32)
@@ -86,6 +96,12 @@ def build_category_stats(
             **bbox_stats,
             "normal_deviation_mean": normal_mean,
         }
+
+        depth_reference_std = None
+        normal_reference_std = None
+        if is_archetype_a_replace(category) and archetype_a_depth_reference_samples and archetype_a_normal_reference_samples:
+            depth_reference_std = np.stack(archetype_a_depth_reference_samples, axis=0).std(axis=0).astype(np.float32)
+            normal_reference_std = np.stack(archetype_a_normal_reference_samples, axis=0).std(axis=0).astype(np.float32)
 
         depth_residual_min = float("inf")
         depth_residual_max = float("-inf")
@@ -115,6 +131,9 @@ def build_category_stats(
             depth_residual_range=(depth_residual_min, depth_residual_max),
             roughness_residual_max=roughness_residual_max,
             curvature_residual_max=curvature_residual_max,
+            descriptor_policy=descriptor_policy,
+            depth_reference_std=depth_reference_std,
+            normal_reference_std=normal_reference_std,
         )
 
         _log(log_progress, f"category_stats:{category}: saved stats to {out_dir}")

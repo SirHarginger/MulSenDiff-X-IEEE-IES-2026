@@ -437,14 +437,23 @@ def save_pointcloud_category_stats(
     depth_residual_range: tuple[float, float],
     roughness_residual_max: float,
     curvature_residual_max: float,
+    descriptor_policy: str = "default_geometry",
+    depth_reference_std: np.ndarray | None = None,
+    normal_reference_std: np.ndarray | None = None,
 ) -> None:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     np.save(out_dir / "depth_mean.npy", depth_mean.astype(np.float32))
+    np.save(out_dir / "depth_reference_mean.npy", depth_mean.astype(np.float32))
     np.save(out_dir / "roughness_mean.npy", roughness_mean.astype(np.float32))
     np.save(out_dir / "curvature_mean.npy", curvature_mean.astype(np.float32))
     np.save(out_dir / "normal_deviation_mean.npy", normal_deviation_mean.astype(np.float32))
+    np.save(out_dir / "normal_reference_mean.npy", normal_deviation_mean.astype(np.float32))
+    if depth_reference_std is not None:
+        np.save(out_dir / "depth_reference_std.npy", depth_reference_std.astype(np.float32))
+    if normal_reference_std is not None:
+        np.save(out_dir / "normal_reference_std.npy", normal_reference_std.astype(np.float32))
 
     payload = {
         "mean_center": np.asarray(stats["mean_center"], dtype=np.float32).tolist(),
@@ -457,6 +466,41 @@ def save_pointcloud_category_stats(
         "depth_residual_max": float(depth_residual_range[1]),
         "roughness_residual_max": float(max(roughness_residual_max, 1e-6)),
         "curvature_residual_max": float(max(curvature_residual_max, 1e-6)),
+        "descriptor_policy": str(descriptor_policy or "default_geometry"),
+        "depth_reference_mean_file": "depth_reference_mean.npy",
+        "normal_reference_mean_file": "normal_reference_mean.npy",
+        "depth_reference_std_file": "depth_reference_std.npy" if depth_reference_std is not None else "",
+        "normal_reference_std_file": "normal_reference_std.npy" if normal_reference_std is not None else "",
+        "pointcloud_channel_semantics": (
+            {
+                "pc_depth": "depth_residual_normalized",
+                "pc_density": "density_normalized",
+                "pc_curvature": "zero_dummy_channel",
+                "pc_roughness": "depth_reference_residual_normalized",
+                "pc_normal_deviation": "normal_reference_residual_magnitude_normalized",
+            }
+            if str(descriptor_policy or "").strip().lower() == "residual_reference"
+            else {
+                "pc_depth": "depth_residual_normalized",
+                "pc_density": "density_normalized",
+                "pc_curvature": "curvature_residual_normalized",
+                "pc_roughness": "roughness_residual_normalized",
+                "pc_normal_deviation": "normal_deviation_normalized",
+            }
+        ),
+        "pointcloud_global_semantics": (
+            {
+                "pc_mean_curvature": "mean_depth_reference_residual",
+                "pc_max_roughness": "max_depth_reference_residual",
+                "pc_p95_normal_deviation": "p95_normal_reference_residual",
+            }
+            if str(descriptor_policy or "").strip().lower() == "residual_reference"
+            else {
+                "pc_mean_curvature": "mean_curvature_residual",
+                "pc_max_roughness": "max_roughness_residual",
+                "pc_p95_normal_deviation": "p95_normal_deviation",
+            }
+        ),
     }
     (out_dir / PC_BBOX_STATS_JSON).write_text(
         json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
@@ -468,7 +512,7 @@ def load_pointcloud_category_stats(
 ) -> Dict[str, object]:
     stats_dir = Path(stats_dir)
     payload = json.loads((stats_dir / PC_BBOX_STATS_JSON).read_text(encoding="utf-8"))
-    return {
+    resolved = {
         **payload,
         "mean_center": np.asarray(payload["mean_center"], dtype=np.float32),
         "depth_mean": np.load(stats_dir / "depth_mean.npy"),
@@ -476,6 +520,25 @@ def load_pointcloud_category_stats(
         "curvature_mean": np.load(stats_dir / "curvature_mean.npy"),
         "normal_deviation_mean": np.load(stats_dir / "normal_deviation_mean.npy"),
     }
+    depth_reference_mean_path = stats_dir / "depth_reference_mean.npy"
+    normal_reference_mean_path = stats_dir / "normal_reference_mean.npy"
+    resolved["depth_reference_mean"] = (
+        np.load(depth_reference_mean_path)
+        if depth_reference_mean_path.exists()
+        else resolved["depth_mean"]
+    )
+    resolved["normal_reference_mean"] = (
+        np.load(normal_reference_mean_path)
+        if normal_reference_mean_path.exists()
+        else resolved["normal_deviation_mean"]
+    )
+    depth_reference_std_path = stats_dir / "depth_reference_std.npy"
+    normal_reference_std_path = stats_dir / "normal_reference_std.npy"
+    if depth_reference_std_path.exists():
+        resolved["depth_reference_std"] = np.load(depth_reference_std_path)
+    if normal_reference_std_path.exists():
+        resolved["normal_reference_std"] = np.load(normal_reference_std_path)
+    return resolved
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -612,6 +675,7 @@ def generate_pointcloud_sample_descriptors(
     pointcloud_path: Path | str,
     *,
     stats: Dict[str, object],
+    category: str = "",
     projection_size: tuple[int, int] = (256, 256),
 ) -> Dict[str, object]:
     """
@@ -671,12 +735,95 @@ def generate_pointcloud_sample_descriptors(
     rough_vals = rough_norm[valid]
     nd_vals = nd_norm[valid]
 
+    descriptor_policy = str(stats.get("descriptor_policy", "default_geometry")).strip().lower() or "default_geometry"
+    if descriptor_policy == "residual_reference":
+        depth_reference_std = np.asarray(
+            stats.get("depth_reference_std", np.ones_like(stats["depth_mean"], dtype=np.float32)),
+            dtype=np.float32,
+        )
+        normal_reference_std = np.asarray(
+            stats.get(
+                "normal_reference_std",
+                np.ones_like(stats["normal_deviation_mean"], dtype=np.float32),
+            ),
+            dtype=np.float32,
+        )
+        depth_scale = np.clip(depth_reference_std, 1e-6, None)
+        depth_reference_mean = np.asarray(
+            stats.get("depth_reference_mean", stats["depth_mean"]),
+            dtype=np.float32,
+        )
+        depth_z = (fm["depth"] - depth_reference_mean) / depth_scale
+        depth_reference_norm = np.clip((depth_z / 3.0) * 0.5 + 0.5, 0.0, 1.0).astype(np.float32)
+
+        mean_normals = np.asarray(
+            stats.get("normal_reference_mean", stats["normal_deviation_mean"]),
+            dtype=np.float32,
+        )
+        normal_scale = np.linalg.norm(normal_reference_std, axis=2)
+        normal_scale = np.clip(normal_scale, 1e-6, None)
+        normal_residual = np.linalg.norm(fm["normal_map"] - mean_normals, axis=2) / normal_scale
+        normal_residual_norm = np.clip(normal_residual / 3.0, 0.0, 1.0).astype(np.float32)
+
+        zero_curvature = np.zeros_like(depth_reference_norm, dtype=np.float32)
+        residual_depth_vals = depth_reference_norm[valid]
+        residual_normal_vals = normal_residual_norm[valid]
+
+        return {
+            "pc_depth": depth_norm,
+            "pc_density": density_norm,
+            "pc_curvature": zero_curvature,
+            "pc_roughness": depth_reference_norm,
+            "pc_normal_deviation": normal_residual_norm,
+            "descriptor_policy": descriptor_policy,
+            "channel_semantics": {
+                "pc_depth": "depth_residual_normalized",
+                "pc_density": "density_normalized",
+                "pc_curvature": "zero_dummy_channel",
+                "pc_roughness": "depth_reference_residual_normalized",
+                "pc_normal_deviation": "normal_reference_residual_magnitude_normalized",
+            },
+            "global_semantics": {
+                "pc_mean_curvature": "mean_depth_reference_residual",
+                "pc_max_roughness": "max_depth_reference_residual",
+                "pc_p95_normal_deviation": "p95_normal_reference_residual",
+            },
+            "global": {
+                # Preserve the legacy vector contract while swapping in residual-reference semantics.
+                "pc_mean_curvature": round(
+                    float(residual_depth_vals.mean()) if residual_depth_vals.size else 0.0,
+                    6,
+                ),
+                "pc_max_roughness": round(
+                    float(residual_depth_vals.max()) if residual_depth_vals.size else 0.0,
+                    6,
+                ),
+                "pc_p95_normal_deviation": round(
+                    float(np.percentile(residual_normal_vals, 95)) if residual_normal_vals.size else 0.0,
+                    6,
+                ),
+            },
+        }
+
     return {
         "pc_depth": depth_norm,
         "pc_density": density_norm,
         "pc_curvature": curv_norm,
         "pc_roughness": rough_norm,
         "pc_normal_deviation": nd_norm,
+        "descriptor_policy": descriptor_policy,
+        "channel_semantics": {
+            "pc_depth": "depth_residual_normalized",
+            "pc_density": "density_normalized",
+            "pc_curvature": "curvature_residual_normalized",
+            "pc_roughness": "roughness_residual_normalized",
+            "pc_normal_deviation": "normal_deviation_normalized",
+        },
+        "global_semantics": {
+            "pc_mean_curvature": "mean_curvature_residual",
+            "pc_max_roughness": "max_roughness_residual",
+            "pc_p95_normal_deviation": "p95_normal_deviation",
+        },
         "global": {
             "pc_mean_curvature": round(
                 float(curv_vals.mean()) if curv_vals.size else 0.0, 6
