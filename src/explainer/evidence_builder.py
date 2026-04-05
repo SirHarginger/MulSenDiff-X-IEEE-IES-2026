@@ -12,6 +12,19 @@ from src.inference.quantification import MasiCalibration, MasiQuantification, qu
 
 
 @dataclass(frozen=True)
+class RetrievalFeatures:
+    category: str
+    defect_label: str
+    confidence_band: str
+    severity_band: str
+    distribution: str
+    dominant_modalities: List[str]
+    sensor_profile_tags: List[str]
+    defect_profile_tags: List[str]
+    query_text: str
+
+
+@dataclass(frozen=True)
 class EvidencePackage:
     category: str
     split: str
@@ -34,6 +47,7 @@ class EvidencePackage:
     evidence_breakdown: Dict[str, float]
     confidence_notes: List[str]
     global_descriptor_score: float
+    retrieval_features: RetrievalFeatures
     retrieved_context: List[Dict[str, str]] = field(default_factory=list)
     provenance: Dict[str, Any] = field(default_factory=dict)
     source_paths: Dict[str, str] = field(default_factory=dict)
@@ -110,11 +124,39 @@ def build_evidence_package(
         }
     )
 
+    resolved_provenance = provenance or {}
     confidence_notes = _build_confidence_notes(
         quantification=masi,
         agreement_strength=agreement_strength,
         inconsistency_strength=inconsistency_strength,
         global_descriptor_score=global_descriptor_score,
+    )
+    thermal_sentence = _strength_sentence(
+        "Thermal evidence",
+        thermal_strength,
+        strong="strong localized hotspot/gradient activity",
+        medium="moderate localized heating cues",
+    )
+    geometric_sentence = _strength_sentence(
+        "Geometric evidence",
+        geometric_strength,
+        strong="clear local surface or shape deviation",
+        medium="moderate local geometric irregularity",
+    )
+    cross_modal_sentence = _cross_modal_sentence(agreement_strength, inconsistency_strength)
+    retrieval_features = _build_retrieval_features(
+        category=category,
+        defect_label=defect_label,
+        score_label=score_label,
+        severity_0_100=masi.severity_0_100,
+        confidence_0_100=masi.confidence_0_100,
+        affected_area_pct=masi.affected_area_pct,
+        evidence_breakdown=evidence_breakdown,
+        thermal_observations=[thermal_sentence],
+        geometric_observations=[geometric_sentence],
+        cross_modal_support=[cross_modal_sentence],
+        provenance=resolved_provenance,
+        global_descriptor_score=float(global_descriptor_score),
     )
 
     return EvidencePackage(
@@ -136,29 +178,14 @@ def build_evidence_package(
             f"{score_label} concentrates around the dominant region with mean intensity {score_basis_strength:.3f}.",
             f"Predicted anomalous area covers {masi.affected_area_pct:.2f}% of the detected object region.",
         ],
-        thermal_observations=[
-            _strength_sentence(
-                "Thermal evidence",
-                thermal_strength,
-                strong="strong localized hotspot/gradient activity",
-                medium="moderate localized heating cues",
-            ),
-        ],
-        geometric_observations=[
-            _strength_sentence(
-                "Geometric evidence",
-                geometric_strength,
-                strong="clear local surface or shape deviation",
-                medium="moderate local geometric irregularity",
-            ),
-        ],
-        cross_modal_support=[
-            _cross_modal_sentence(agreement_strength, inconsistency_strength),
-        ],
+        thermal_observations=[thermal_sentence],
+        geometric_observations=[geometric_sentence],
+        cross_modal_support=[cross_modal_sentence],
         evidence_breakdown=evidence_breakdown,
         confidence_notes=confidence_notes,
         global_descriptor_score=float(global_descriptor_score),
-        provenance=provenance or {},
+        retrieval_features=retrieval_features,
+        provenance=resolved_provenance,
         source_paths=source_paths or {},
     )
 
@@ -224,6 +251,10 @@ def _normalize_contributions(raw_values: Dict[str, float]) -> Dict[str, float]:
     return {key: round(100.0 * value / total, 3) for key, value in positive_values.items()}
 
 
+def build_retrieval_query(package: EvidencePackage) -> Dict[str, Any]:
+    return asdict(package.retrieval_features)
+
+
 def _strength_sentence(label: str, strength: float, *, strong: str, medium: str) -> str:
     if strength >= 0.6:
         detail = strong
@@ -273,3 +304,194 @@ def _build_confidence_notes(
             f"Sample-level global descriptor deviation is elevated ({global_descriptor_score:.3f}), reinforcing the anomaly hypothesis."
         )
     return notes
+
+
+def _build_retrieval_features(
+    *,
+    category: str,
+    defect_label: str,
+    score_label: str,
+    severity_0_100: float,
+    confidence_0_100: float,
+    affected_area_pct: float,
+    evidence_breakdown: Dict[str, float],
+    thermal_observations: List[str],
+    geometric_observations: List[str],
+    cross_modal_support: List[str],
+    provenance: Dict[str, Any],
+    global_descriptor_score: float,
+) -> RetrievalFeatures:
+    distribution = _distribution_label(affected_area_pct)
+    dominant_modalities = _dominant_modalities(evidence_breakdown)
+    sensor_profile_tags = _sensor_profile_tags(
+        dominant_modalities=dominant_modalities,
+        thermal_observations=thermal_observations,
+        geometric_observations=geometric_observations,
+        cross_modal_support=cross_modal_support,
+        provenance=provenance,
+    )
+    defect_profile_tags = _defect_profile_tags(
+        score_label=score_label,
+        distribution=distribution,
+        thermal_observations=thermal_observations,
+        geometric_observations=geometric_observations,
+        cross_modal_support=cross_modal_support,
+        provenance=provenance,
+        global_descriptor_score=global_descriptor_score,
+    )
+    confidence_band = _confidence_band(confidence_0_100)
+    severity_band = _severity_band(severity_0_100)
+    query_parts = [
+        f"category={category}",
+        f"defect_label={defect_label}",
+        f"confidence={confidence_band}",
+        f"severity={severity_band}",
+        f"distribution={distribution}",
+        f"dominant_modalities={','.join(dominant_modalities)}",
+        f"sensor_profile={','.join(sensor_profile_tags)}",
+        f"defect_profile={','.join(defect_profile_tags)}",
+    ]
+    return RetrievalFeatures(
+        category=category,
+        defect_label=defect_label,
+        confidence_band=confidence_band,
+        severity_band=severity_band,
+        distribution=distribution,
+        dominant_modalities=dominant_modalities,
+        sensor_profile_tags=sensor_profile_tags,
+        defect_profile_tags=defect_profile_tags,
+        query_text=" | ".join(query_parts),
+    )
+
+
+def _confidence_band(value: float) -> str:
+    if value >= 70.0:
+        return "high"
+    if value >= 40.0:
+        return "medium"
+    return "low"
+
+
+def _severity_band(value: float) -> str:
+    if value >= 70.0:
+        return "high"
+    if value >= 35.0:
+        return "medium"
+    return "low"
+
+
+def _distribution_label(affected_area_pct: float) -> str:
+    if affected_area_pct >= 20.0:
+        return "broad"
+    if affected_area_pct >= 7.5:
+        return "moderately_concentrated"
+    return "compact"
+
+
+def _dominant_modalities(evidence_breakdown: Dict[str, float]) -> List[str]:
+    modality_names = {
+        "score_basis_pct": "score_basis",
+        "thermal_pct": "thermal",
+        "geometric_pct": "geometric",
+        "crossmodal_pct": "crossmodal",
+        "global_descriptor_pct": "global_descriptor",
+    }
+    ranked = sorted(
+        evidence_breakdown.items(),
+        key=lambda item: float(item[1]),
+        reverse=True,
+    )
+    dominant = [modality_names[key] for key, value in ranked if float(value) > 0.0][:2]
+    return dominant or ["score_basis"]
+
+
+def _sensor_profile_tags(
+    *,
+    dominant_modalities: List[str],
+    thermal_observations: List[str],
+    geometric_observations: List[str],
+    cross_modal_support: List[str],
+    provenance: Dict[str, Any],
+) -> List[str]:
+    tags: List[str] = []
+    thermal_text = " ".join(thermal_observations).lower()
+    geometric_text = " ".join(geometric_observations).lower()
+    cross_text = " ".join(cross_modal_support).lower()
+
+    if "thermal" in dominant_modalities or "hotspot" in thermal_text or "heating" in thermal_text:
+        tags.append("thermal_hotspot")
+    if "geometric" in dominant_modalities or "surface" in geometric_text or "shape" in geometric_text:
+        tags.append("geometric_shift")
+    if "crossmodal" in dominant_modalities:
+        tags.append("cross_modal_signal")
+    if "mixed" in cross_text or "inconsistency" in cross_text or float(provenance.get("raw_cross_inconsistency_score", 0.0)) > 0.0:
+        tags.append("cross_inconsistency")
+
+    gate_mode = str(provenance.get("internal_defect_gate_mode", "")).strip()
+    if gate_mode == "cross_inconsistency":
+        tags.append("internal_defect_signal")
+    elif gate_mode == "thermal_hotspot":
+        tags.append("internal_thermal_signal")
+    if bool(provenance.get("internal_defect_gate_fired", False)):
+        tags.append("gate_fired")
+    return _dedupe_tags(tags)
+
+
+def _defect_profile_tags(
+    *,
+    score_label: str,
+    distribution: str,
+    thermal_observations: List[str],
+    geometric_observations: List[str],
+    cross_modal_support: List[str],
+    provenance: Dict[str, Any],
+    global_descriptor_score: float,
+) -> List[str]:
+    tags: List[str] = [_slugify_tag(score_label), f"{distribution}_anomaly"]
+    thermal_text = " ".join(thermal_observations).lower()
+    geometric_text = " ".join(geometric_observations).lower()
+    cross_text = " ".join(cross_modal_support).lower()
+
+    if "strong" in thermal_text:
+        tags.append("strong_thermal_support")
+    elif "moderate" in thermal_text:
+        tags.append("moderate_thermal_support")
+    else:
+        tags.append("weak_thermal_support")
+
+    if "strong" in geometric_text or "clear" in geometric_text:
+        tags.append("strong_geometric_support")
+    elif "moderate" in geometric_text:
+        tags.append("moderate_geometric_support")
+    else:
+        tags.append("weak_geometric_support")
+
+    if "mixed" in cross_text or "inconsistency" in cross_text:
+        tags.append("cross_modal_inconsistency")
+    else:
+        tags.append("cross_modal_agreement")
+
+    gate_mode = str(provenance.get("internal_defect_gate_mode", "")).strip()
+    if gate_mode == "cross_inconsistency":
+        tags.append("internal_defect_profile")
+    elif gate_mode == "thermal_hotspot":
+        tags.append("thermal_internal_profile")
+    if global_descriptor_score >= 0.5:
+        tags.append("global_descriptor_drift")
+    return _dedupe_tags(tags)
+
+
+def _slugify_tag(value: str) -> str:
+    return "_".join(part for part in str(value).lower().replace("-", "_").split() if part)
+
+
+def _dedupe_tags(values: List[str]) -> List[str]:
+    seen = set()
+    ordered: List[str] = []
+    for value in values:
+        resolved = value.strip().lower()
+        if not resolved or resolved in seen:
+            continue
+        seen.add(resolved)
+        ordered.append(resolved)
+    return ordered
