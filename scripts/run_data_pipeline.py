@@ -35,6 +35,7 @@ def main() -> None:
     )
     parser.add_argument("--raw-root", default="data/raw/MulSen_AD")
     parser.add_argument("--data-root", default="data")
+    parser.add_argument("--processed-root", default="")
     parser.add_argument("--categories", default="")
     parser.add_argument("--splits", default="")
     parser.add_argument("--defects", default="")
@@ -50,7 +51,11 @@ def main() -> None:
     logger = None if args.quiet else _log
 
     _log("starting dataset indexing") if logger else None
-    dataset_index = build_dataset_index(args.raw_root, args.data_root)
+    dataset_index = build_dataset_index(
+        args.raw_root,
+        args.data_root,
+        processed_root=args.processed_root or None,
+    )
     _log(
         f"dataset indexing complete ({len(dataset_index['records'])} records, {len(dataset_index['issues'])} issues)"
     ) if logger else None
@@ -58,6 +63,7 @@ def main() -> None:
     _log("starting descriptor pipeline") if logger else None
     descriptor_result = run_descriptor_pipeline(
         data_root=args.data_root,
+        processed_root=args.processed_root or None,
         index_csv=dataset_index["manifest_csv"],
         categories=_parse_csv_set(args.categories),
         splits=_parse_csv_set(args.splits),
@@ -77,7 +83,11 @@ def main() -> None:
     manifests = None
     if not args.skip_manifests:
         _log("building training/eval manifests") if logger else None
-        manifests = build_training_manifests(data_root=args.data_root, categories=_parse_csv_list(args.categories))
+        manifests = build_training_manifests(
+            data_root=args.data_root,
+            processed_root=args.processed_root or None,
+            categories=_parse_csv_list(args.categories),
+        )
         _log("manifest generation complete") if logger else None
 
     print("dataset_records:", len(dataset_index["records"]))
@@ -87,7 +97,10 @@ def main() -> None:
     print("generated:", descriptor_result["generated"])
     print("descriptor_failures:", len(descriptor_result["failures"]))
     print("descriptor_summary:", descriptor_result["pipeline_summary_path"])
+    print("descriptor_policy_audit_json:", descriptor_result["descriptor_policy_audit_json"])
+    print("descriptor_policy_audit_csv:", descriptor_result["descriptor_policy_audit_csv"])
     print("samples_root:", descriptor_result["samples_root"])
+    print("processed_root:", descriptor_result["processed_root"])
     if manifests is not None:
         print("train_manifest:", manifests["train_csv"])
         print("eval_manifest:", manifests["eval_csv"])
