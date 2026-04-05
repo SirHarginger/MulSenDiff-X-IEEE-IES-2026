@@ -8,6 +8,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
+from src.project_layout import discover_training_runs
+
 
 @dataclass(frozen=True)
 class RunSummary:
@@ -137,7 +139,8 @@ def summarize_run(run_dir: Path) -> RunSummary | None:
 
 def collect_runs(root: Path) -> list[RunSummary]:
     results: list[RunSummary] = []
-    for run_dir in sorted(path for path in root.iterdir() if path.is_dir()):
+    search_roots = [root / "runs"] if root.name != "runs" and (root / "runs").exists() else [root]
+    for run_dir in discover_training_runs(*search_roots):
         summary = summarize_run(run_dir)
         if summary is not None:
             results.append(summary)
