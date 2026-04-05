@@ -6,6 +6,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
+from src.project_layout import resolve_processed_root
+
 
 MODALITY_SPECS = {
     "RGB": {"sample_ext": ".png", "gt_ext": ".png"},
@@ -63,9 +65,13 @@ def _bool_from_csv(value: Optional[str]) -> Optional[bool]:
     return None
 
 
-def ensure_processed_layout(data_root: Path | str) -> Dict[str, Path]:
+def ensure_processed_layout(
+    data_root: Path | str,
+    *,
+    processed_root: Path | str | None = None,
+) -> Dict[str, Path]:
     data_root = Path(data_root)
-    processed_root = data_root / "processed"
+    processed_root = resolve_processed_root(data_root=data_root, processed_root=processed_root)
     created: Dict[str, Path] = {}
     for relative_dir in DEFAULT_PROCESSED_DIRS:
         path = processed_root / relative_dir
@@ -255,10 +261,16 @@ def _collect_test_records(category_path: Path) -> Tuple[List[SampleRecord], List
     return records, issues
 
 
-def build_dataset_index(raw_root: Path | str, data_root: Path | str = "data") -> Dict[str, object]:
+def build_dataset_index(
+    raw_root: Path | str,
+    data_root: Path | str = "data",
+    *,
+    processed_root: Path | str | None = None,
+) -> Dict[str, object]:
     raw_root = Path(raw_root)
     data_root = Path(data_root)
-    ensure_processed_layout(data_root)
+    resolved_processed_root = resolve_processed_root(data_root=data_root, processed_root=processed_root)
+    ensure_processed_layout(data_root, processed_root=resolved_processed_root)
 
     records: List[SampleRecord] = []
     issues: List[AlignmentIssue] = []
@@ -271,8 +283,8 @@ def build_dataset_index(raw_root: Path | str, data_root: Path | str = "data") ->
         issues.extend(train_issues)
         issues.extend(test_issues)
 
-    manifests_root = data_root / "processed" / "manifests"
-    reports_root = data_root / "processed" / "reports"
+    manifests_root = resolved_processed_root / "manifests"
+    reports_root = resolved_processed_root / "reports"
 
     _write_index_files(records, manifests_root)
     _write_per_category_files(records, manifests_root / "per_category")
@@ -286,6 +298,7 @@ def build_dataset_index(raw_root: Path | str, data_root: Path | str = "data") ->
         "manifest_jsonl": manifests_root / "dataset_index.jsonl",
         "audit_report": reports_root / "data_audit.json",
         "issue_report": reports_root / "missing_alignment.csv",
+        "processed_root": resolved_processed_root,
     }
 
 
