@@ -67,6 +67,7 @@ runs/
 ## Dataset
 
 This repository contains code only. It does **not** redistribute the MulSen-AD dataset.
+python scripts/run_regime_pipeline.py --regime ccdd --device-mode cuda --run-name main
 
 Expected raw dataset location:
 
@@ -121,25 +122,23 @@ python -c "import sys, torch; print('python:', sys.version.split()[0]); print('t
 
 ## Final Workflow
 
-The publication-facing workflow is:
+The final workflow is:
 
 1. preprocess into `data/processed`
-2. run training for one regime
-3. run evaluation from the resulting checkpoint
+2. train one regime
+3. evaluate immediately after training
 4. optionally export the selected eval bundle into `model/`
 5. run the app from `model/` or directly from `runs/`
-
-We keep the full regime wrappers for our own convenience, but the primary documented workflow is the explicit preprocess -> train -> eval path.
 
 ### Script Roles
 
 - `scripts/run_data_pipeline.py` = preprocess only
 - `scripts/run_training.py` = train only
 - `scripts/run_evaluation.py` = eval only
-- `scripts/run_regime_pipeline.py` = optional convenience wrapper for auto-preprocess if needed + train + eval for one regime
-- `scripts/run_study_pipeline.py` = optional convenience wrapper for auto-preprocess if needed + train + eval for multiple regimes
+- `scripts/run_regime_pipeline.py` = auto-preprocess if needed + train + eval for one regime
+- `scripts/run_study_pipeline.py` = auto-preprocess if needed + train + eval for multiple regimes
 
-For publication and reproducibility, prefer the separate scripts. Use the pipeline wrappers only when you want the faster internal workflow.
+So if you want full automation, use the pipeline scripts. If you want tighter control, you can still run preprocess, train, and eval separately.
 
 ### 1. Preprocess
 
@@ -147,7 +146,7 @@ For publication and reproducibility, prefer the separate scripts. Use the pipeli
 python scripts/run_data_pipeline.py --processed-root data/processed
 ```
 
-### 2. Train Only
+### Train Only
 
 Examples:
 
@@ -163,7 +162,7 @@ These write training runs under:
 - `runs/cadd/train/`
 - `runs/csdd/train/`
 
-### 3. Eval Only
+### Eval Only
 
 Examples:
 
@@ -179,7 +178,7 @@ These write evaluation runs under:
 - `runs/cadd/eval/`
 - `runs/csdd/eval/`
 
-### Optional Internal Wrapper: Run One Regime
+### 2. Run One Regime
 
 ```bash
 python scripts/run_regime_pipeline.py --regime ccdd --device-mode cuda --run-name main
@@ -204,7 +203,7 @@ Preprocessing behavior:
 - use `--overwrite-preprocess` to force a rebuild
 - use `--skip-preprocess` to bypass the check entirely
 
-### Optional Internal Wrapper: Run The Full Study
+### 3. Run The Full Study
 
 ```bash
 python scripts/run_study_pipeline.py --device-mode cuda --run-name main
