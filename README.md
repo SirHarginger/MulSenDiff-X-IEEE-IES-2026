@@ -2,7 +2,7 @@
 
 MulSenDiff-X is a multimodal industrial anomaly detection system built on **MulSen-AD**. It uses RGB appearance as the main reconstruction target and conditions scoring with thermal and geometric evidence derived from infrared and point-cloud data.
 
-The repo supports three final detector regimes:
+The repo supports three detector regimes:
 
 - `CCDD`: Category-Conditioned Descriptor Diffusion
 - `CADD`: Category-Agnostic Descriptor Diffusion
