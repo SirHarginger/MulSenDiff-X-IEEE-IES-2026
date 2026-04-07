@@ -10,14 +10,11 @@ The repo supports three detector regimes:
 
 It also includes:
 
-- the final preprocessing pipeline
+- the preprocessing pipeline
 - train and evaluation workflows
-- the locked practical localization setting
-- the locked Archetype B score-rescue logic
 - a Streamlit inspection app
-- detector-first corrective RAG explanation support
 
-## Final Repo Layout
+## Repo Layout
 
 ```text
 app/
@@ -30,44 +27,10 @@ scripts/
 src/
 ```
 
-Important runtime directories:
-
-```text
-data/
-  raw/
-  processed/
-  splits/
-  cache/
-  retrieval/
-
-docs/
-  references/
-
-model/
-  ccdd/
-  cadd/
-  csdd/
-
-runs/
-  ccdd/
-    train/
-    eval/
-  cadd/
-    train/
-    eval/
-  csdd/
-    train/
-    eval/
-  ablations/
-    archetype_a/
-    archetype_b/
-  app_sessions/
-```
 
 ## Dataset
 
 This repository contains code only. It does **not** redistribute the MulSen-AD dataset.
-python scripts/run_regime_pipeline.py --regime ccdd --device-mode cuda --run-name main
 
 Expected raw dataset location:
 
@@ -120,7 +83,7 @@ Verify the runtime:
 python -c "import sys, torch; print('python:', sys.version.split()[0]); print('torch:', torch.__version__); print('cuda_available:', torch.cuda.is_available()); print('device_count:', torch.cuda.device_count()); print('device_name:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'none')"
 ```
 
-## Final Workflow
+## Workflow
 
 The final workflow is:
 
@@ -231,15 +194,7 @@ The exported bundle is self-contained and includes:
 - `checkpoint.pt`
 - `config.json`
 
-### 5. Run The App
-
-```bash
-python scripts/run_app.py
-```
-
-The app prefers exported bundles under `model/` and falls back to evaluation runs under `runs/`.
-
-## RAG / LLM Support
+## App Quick Start
 
 MulSenDiff-X uses a detector-first explanation flow:
 
@@ -248,11 +203,6 @@ MulSenDiff-X uses a detector-first explanation flow:
 3. retrieval searches a narrow trusted corpus
 4. Gemini generates a schema-constrained operator report
 
-Trusted human-maintained source files belong in:
-
-```text
-docs/references/
-```
 
 Build the retrieval index into:
 
@@ -260,54 +210,43 @@ Build the retrieval index into:
 data/retrieval/index.jsonl
 ```
 
-Command:
+Rebuild the retrieval index only after adding your own approved source files:
 
 ```bash
 python scripts/build_trusted_corpus.py
 ```
 
-To enable live Gemini explanations:
+Create the local Gemini config:
 
 ```bash
-export GOOGLE_API_KEY="your_key_here"
-export GEMINI_MODEL="gemini-2.5-flash"
+cp config/gemini.example.json config/gemini.local.json
 ```
 
-Gemini is explanation-only. It is not part of anomaly detection.
+Then open `config/gemini.local.json` and set:
 
-## Final Study Outputs
+```json
+{
+  "api_key": "your_key_here",
+  "model": "gemini-2.5-flash"
+}
+```
 
-Main study outputs:
 
-- `runs/ccdd/train/`
-- `runs/ccdd/eval/`
-- `runs/cadd/train/`
-- `runs/cadd/eval/`
-- `runs/csdd/train/`
-- `runs/csdd/eval/`
+The app will read this JSON file automatically, so the terminal only needs the run command below.
 
-Formal ablation outputs:
+Launch the app from the activated project environment:
 
-- `runs/ablations/archetype_a/`
-- `runs/ablations/archetype_b/`
+```bash
+python scripts/run_app.py --host 127.0.0.1 --port 8501 --headless
+```
 
-App session outputs:
+Then open example:
 
-- `runs/app_sessions/`
+```text
+http://127.0.0.1:8501
+```
 
-## Locked Study Decisions
-
-The cleaned repo assumes these final decisions:
-
-- canonical processed dataset path is `data/processed`
-- main practical scorer is `legacy_raw`
-- formal regimes are `CCDD`, `CADD`, and `CSDD`
-- formal insight ablations are:
-  - Archetype A preprocessing effect
-  - Archetype B gate off vs gate on
-- localization is kept as the accepted practical setting, not as a standing ablation family
-
-## Sanity Checks
+## Checks
 
 ```bash
 python scripts/run_data_pipeline.py --help
