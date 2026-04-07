@@ -23,3 +23,8 @@ Required metadata fields:
   "process_tags": ["seal_check", "assembly_review"]
 }
 ```
+
+Practical note:
+
+- use category-specific `category_tags` for category-specific manuals or reference cases
+- rebuild `data/retrieval/index.jsonl` after changing these files

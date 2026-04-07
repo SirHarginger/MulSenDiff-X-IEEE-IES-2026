@@ -1,0 +1,17 @@
+{
+  "doc_id": "piggy_color_shift_reference_v1",
+  "title": "Piggy Color Shift Reference",
+  "source_type": "manual",
+  "trust_level": "approved",
+  "category_tags": ["piggy"],
+  "sensor_tags": ["cross_inconsistency"],
+  "defect_tags": [
+    "weighted_residual_+_noise",
+    "compact_anomaly",
+    "weak_geometric_support",
+    "cross_modal_inconsistency",
+    "global_descriptor_drift"
+  ],
+  "process_tags": ["finish_review", "pigment_check", "contamination_audit"]
+}
+

@@ -1,0 +1,17 @@
+{
+  "doc_id": "toothbrush_break_reference_v1",
+  "title": "Toothbrush Break Reference",
+  "source_type": "manual",
+  "trust_level": "approved",
+  "category_tags": ["toothbrush"],
+  "sensor_tags": ["cross_inconsistency"],
+  "defect_tags": [
+    "weighted_residual_+_noise",
+    "compact_anomaly",
+    "weak_geometric_support",
+    "cross_modal_inconsistency",
+    "global_descriptor_drift"
+  ],
+  "process_tags": ["junction_check", "handling_audit", "plastic_fracture_review"]
+}
+
