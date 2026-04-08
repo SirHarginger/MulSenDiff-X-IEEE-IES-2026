@@ -1,17 +1,13 @@
-# Published Model Checkpoints
+# Published Model Metadata
 
-This directory contains the public release checkpoints for the final MulSenDiff-X study.
+This directory contains the public release model metadata for the final MulSenDiff-X study.
 
 Included artifacts:
-
-- `ccdd/checkpoint.pt`
-- `cadd/checkpoint.pt`
-- `csdd/<category>/checkpoint.pt` for all 15 categories
-
-Each published checkpoint is accompanied by:
 
 - `config.json`
 - `summary.json`
 - `bundle_manifest.json`
 
-The original full train runs remain local/private and are not part of the public release.
+The actual `.pt` checkpoints are intentionally not stored in the public Git history.
+
+They are kept in external private/public storage and linked separately when needed for review or demo distribution.

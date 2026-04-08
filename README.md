@@ -29,7 +29,7 @@ src/
 
 ## Public Release Contents
 
-This public release is a **lightweight code + results + best-checkpoints repo**.
+This public release is a **lightweight code + results + model-metadata repo**.
 
 Included:
 
@@ -38,7 +38,7 @@ Included:
   - `CCDD`
   - `CADD`
   - all 15 `CSDD` categories
-- published best checkpoints under `model/`
+- published model metadata under `model/`
 - the prebuilt retrieval index at `data/retrieval/index.jsonl`
 - the public Gemini config template at `config/gemini.example.json`
 
@@ -48,6 +48,7 @@ Intentionally omitted:
 - `data/processed/`
 - full `runs/*/train/`
 - epoch-by-epoch checkpoints
+- large `.pt` model weights
 - bulky eval `predictions/`
 - detailed `evidence/packages/` and `evidence/reports/`
 - `runs/app_sessions/`
@@ -75,19 +76,15 @@ The public repo excludes heavy eval internals such as:
 
 ### Public `model/` policy
 
-The published `model/` tree is the checkpoint surface for the release:
-
-- `model/ccdd/checkpoint.pt`
-- `model/cadd/checkpoint.pt`
-- `model/csdd/<category>/checkpoint.pt`
-
-Each published checkpoint is accompanied by:
+The published `model/` tree keeps lightweight model metadata only:
 
 - `config.json`
 - `summary.json`
 - `bundle_manifest.json`
 
 These model entries point back to the original source train/eval runs through their bundle manifest metadata.
+
+The actual `.pt` checkpoint files are intentionally stored outside GitHub to keep the repository cloneable and reviewer-friendly.
 
 
 ## Dataset
@@ -152,7 +149,7 @@ The final workflow is:
 1. preprocess into `data/processed`
 2. train one regime
 3. evaluate immediately after training
-4. optionally export or copy the selected best checkpoint into `model/`
+4. optionally export or copy the selected best checkpoint outside GitHub and keep lightweight model metadata in `model/`
 5. run the app from `model/` or directly from `runs/`
 
 ### Script Roles
@@ -258,12 +255,11 @@ The export command creates a self-contained bundle with:
 
 For this public release, the published `model/` directory is lighter than a full exported bundle and keeps:
 
-- `checkpoint.pt`
 - `config.json`
 - `summary.json`
 - `bundle_manifest.json`
 
-The original full train runs remain private.
+The actual `.pt` files should be hosted outside GitHub, for example in Google Drive, and linked from release notes or a private reviewer bundle if needed.
 
 ## App Quick Start
 
