@@ -1,9 +1,0 @@
-{
-  "regime": "ccdd",
-  "category_scope": "all",
-  "source_train_run": "runs/ccdd/train/20260404_174514__ccdd__all__train__main",
-  "source_eval_run": "runs/ccdd/eval/20260405_022008__ccdd__all__eval__main",
-  "checkpoint_path": "model/ccdd/checkpoint.pt",
-  "config_path": "model/ccdd/config.json",
-  "summary_path": "model/ccdd/summary.json"
-}

@@ -8,7 +8,6 @@ The publication-facing workflow is the explicit preprocess -> train -> eval path
 
 - preprocess only into `data/processed`
 - write all train and eval outputs into `runs/`
-- export selected app-ready bundles into `model/`
 - keep only these formal ablation families:
   - Archetype A
   - Archetype B
@@ -115,7 +114,7 @@ python scripts/run_study_pipeline.py --regimes ccdd,cadd
 
 ## 4. Export App-Ready Bundles
 
-After choosing the eval run you want to serve in the app:
+After choosing the eval run you want to serve or distribute privately:
 
 ```bash
 python scripts/export_model_bundle.py \
@@ -123,7 +122,7 @@ python scripts/export_model_bundle.py \
   --force
 ```
 
-For `CSDD`, the export goes into a category subfolder under `model/csdd/`.
+For `CSDD`, the export goes into a category subfolder under a local export target.
 
 ## 5. Run The App
 
@@ -131,7 +130,7 @@ Before launching the app:
 
 1. keep the shipped retrieval index or rebuild it after adding your own approved source files
 2. make sure `config/gemini.local.json` contains a valid Gemini key
-3. keep the chosen `CCDD` evaluation run available under `model/` or `runs/`
+3. keep the chosen evaluation runs available under `runs/`
 
 ```bash
 python scripts/run_app.py --host 127.0.0.1 --port 8501 --headless
@@ -145,12 +144,7 @@ http://127.0.0.1:8501
 
 If `8501` is busy, switch to another port such as `8502`.
 
-The app lookup order is:
-
-1. exported bundles in `model/`
-2. evaluation runs in `runs/*/eval`
-
-The main demo path is a curated `CCDD` sample selector backed by known paired samples so the full detector -> retrieval -> Gemini path stays grounded. It is not a generic upload-first workflow in the current locked demo.
+The main demo path is a curated `CCDD` sample selector backed by known paired samples in the published evaluation runs so the full detector -> retrieval -> Gemini path stays grounded. It is not a generic upload-first workflow in the current locked demo.
 
 ## 6. Build Trusted Retrieval Support
 

@@ -1,9 +1,0 @@
-{
-  "regime": "cadd",
-  "category_scope": "all",
-  "source_train_run": "runs/cadd/train/20260405_052232__cadd__all__train__main",
-  "source_eval_run": "runs/cadd/eval/20260405_141321__cadd__all__eval__main",
-  "checkpoint_path": "model/cadd/checkpoint.pt",
-  "config_path": "model/cadd/config.json",
-  "summary_path": "model/cadd/summary.json"
-}

@@ -111,4 +111,3 @@ data/splits/
 data/cache/
 src/explainer/local_gemini_config.py
 config/gemini.local.json
-model/**/checkpoint.pt

@@ -1,9 +1,0 @@
-{
-  "regime": "csdd",
-  "category_scope": "solar_panel",
-  "source_train_run": "runs/csdd/train/20260405_223528__csdd__solar_panel__train__main",
-  "source_eval_run": "runs/csdd/eval/20260405_231117__csdd__solar_panel__eval__main",
-  "checkpoint_path": "model/csdd/solar_panel/checkpoint.pt",
-  "config_path": "model/csdd/solar_panel/config.json",
-  "summary_path": "model/csdd/solar_panel/summary.json"
-}

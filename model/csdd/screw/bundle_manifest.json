@@ -1,9 +1,0 @@
-{
-  "regime": "csdd",
-  "category_scope": "screw",
-  "source_train_run": "runs/csdd/train/20260405_215704__csdd__screw__train__main",
-  "source_eval_run": "runs/csdd/eval/20260405_223426__csdd__screw__eval__main",
-  "checkpoint_path": "model/csdd/screw/checkpoint.pt",
-  "config_path": "model/csdd/screw/config.json",
-  "summary_path": "model/csdd/screw/summary.json"
-}

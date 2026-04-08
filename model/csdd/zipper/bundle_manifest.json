@@ -1,9 +1,0 @@
-{
-  "regime": "csdd",
-  "category_scope": "zipper",
-  "source_train_run": "runs/csdd/train/20260406_002759__csdd__zipper__train__main",
-  "source_eval_run": "runs/csdd/eval/20260406_010250__csdd__zipper__eval__main",
-  "checkpoint_path": "model/csdd/zipper/checkpoint.pt",
-  "config_path": "model/csdd/zipper/config.json",
-  "summary_path": "model/csdd/zipper/summary.json"
-}

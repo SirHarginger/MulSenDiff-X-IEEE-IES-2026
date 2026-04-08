@@ -1,9 +1,0 @@
-{
-  "regime": "csdd",
-  "category_scope": "capsule",
-  "source_train_run": "runs/csdd/train/20260405_155816__csdd__capsule__train__main",
-  "source_eval_run": "runs/csdd/eval/20260405_163230__csdd__capsule__eval__main",
-  "checkpoint_path": "model/csdd/capsule/checkpoint.pt",
-  "config_path": "model/csdd/capsule/config.json",
-  "summary_path": "model/csdd/capsule/summary.json"
-}

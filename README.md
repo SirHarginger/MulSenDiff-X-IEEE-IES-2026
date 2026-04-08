@@ -21,7 +21,6 @@ app/
 config/
 data/
 docs/
-model/
 runs/
 scripts/
 src/
@@ -29,7 +28,7 @@ src/
 
 ## Public Release Contents
 
-This public release is a **lightweight code + results + model-metadata repo**.
+This public release is a **lightweight code + results repo**.
 
 Included:
 
@@ -38,7 +37,6 @@ Included:
   - `CCDD`
   - `CADD`
   - all 15 `CSDD` categories
-- published model metadata under `model/`
 - the prebuilt retrieval index at `data/retrieval/index.jsonl`
 - the public Gemini config template at `config/gemini.example.json`
 
@@ -73,19 +71,6 @@ The public repo excludes heavy eval internals such as:
 - `evidence/reports/`
 - `logs/`
 - `checkpoints/`
-
-### Public `model/` policy
-
-The published `model/` tree keeps lightweight model metadata only:
-
-- `config.json`
-- `summary.json`
-- `bundle_manifest.json`
-
-These model entries point back to the original source train/eval runs through their bundle manifest metadata.
-
-The actual `.pt` checkpoint files are intentionally stored outside GitHub to keep the repository cloneable and reviewer-friendly.
-
 
 ## Dataset
 
@@ -149,8 +134,8 @@ The final workflow is:
 1. preprocess into `data/processed`
 2. train one regime
 3. evaluate immediately after training
-4. optionally export or copy the selected best checkpoint outside GitHub and keep lightweight model metadata in `model/`
-5. run the app from `model/` or directly from `runs/`
+4. optionally export or copy the selected best checkpoint outside GitHub for private distribution
+5. run the app directly from `runs/`
 
 ### Script Roles
 
@@ -237,15 +222,15 @@ This checks `data/processed`, preprocesses only when needed, then runs:
 - `cadd`
 - `csdd`
 
-### 4. Export Or Publish Best Checkpoints
+### 4. Export Best Checkpoints For External Hosting
 
-You can export a chosen eval run into `model/`:
+You can still export a chosen eval run into a local bundle if needed:
 
 ```bash
 python scripts/export_model_bundle.py --eval-run runs/ccdd/eval/<eval_run_dir> --force
 ```
 
-The export command creates a self-contained bundle with:
+The export command creates a self-contained local bundle with:
 
 - `summary.json`
 - `metrics/`
@@ -253,13 +238,7 @@ The export command creates a self-contained bundle with:
 - `checkpoint.pt`
 - `config.json`
 
-For this public release, the published `model/` directory is lighter than a full exported bundle and keeps:
-
-- `config.json`
-- `summary.json`
-- `bundle_manifest.json`
-
-The actual `.pt` files should be hosted outside GitHub, for example in Google Drive, and linked from release notes or a private reviewer bundle if needed.
+For this public release, those exported bundles and `.pt` checkpoint files are intentionally kept out of GitHub. Host them externally, for example in Google Drive, when you need to share them privately with reviewers or judges.
 
 ## App Quick Start
 

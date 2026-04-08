@@ -1,9 +1,0 @@
-{
-  "regime": "csdd",
-  "category_scope": "spring_pad",
-  "source_train_run": "runs/csdd/train/20260405_231217__csdd__spring_pad__train__main",
-  "source_eval_run": "runs/csdd/eval/20260405_234619__csdd__spring_pad__eval__main",
-  "checkpoint_path": "model/csdd/spring_pad/checkpoint.pt",
-  "config_path": "model/csdd/spring_pad/config.json",
-  "summary_path": "model/csdd/spring_pad/summary.json"
-}
