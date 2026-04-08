@@ -43,6 +43,7 @@ venv.bak/
 .spyproject
 .ropeproject
 .ipynb_checkpoints/
+.codex
 .codex/
 .cursorignore
 .cursorindexingignore
