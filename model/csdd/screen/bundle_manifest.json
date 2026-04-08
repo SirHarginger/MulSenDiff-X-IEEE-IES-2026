@@ -1,0 +1,9 @@
+{
+  "regime": "csdd",
+  "category_scope": "screen",
+  "source_train_run": "runs/csdd/train/20260405_212628__csdd__screen__train__main",
+  "source_eval_run": "runs/csdd/eval/20260405_215612__csdd__screen__eval__main",
+  "checkpoint_path": "model/csdd/screen/checkpoint.pt",
+  "config_path": "model/csdd/screen/config.json",
+  "summary_path": "model/csdd/screen/summary.json"
+}

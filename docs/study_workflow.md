@@ -127,18 +127,40 @@ For `CSDD`, the export goes into a category subfolder under `model/csdd/`.
 
 ## 5. Run The App
 
+Before launching the app:
+
+1. keep the shipped retrieval index or rebuild it after adding your own approved source files
+2. make sure `config/gemini.local.json` contains a valid Gemini key
+3. keep the chosen `CCDD` evaluation run available under `model/` or `runs/`
+
 ```bash
-python scripts/run_app.py
+python scripts/run_app.py --host 127.0.0.1 --port 8501 --headless
 ```
+
+Open:
+
+```text
+http://127.0.0.1:8501
+```
+
+If `8501` is busy, switch to another port such as `8502`.
 
 The app lookup order is:
 
 1. exported bundles in `model/`
 2. evaluation runs in `runs/*/eval`
 
+The main demo path is a curated `CCDD` sample selector backed by known paired samples so the full detector -> retrieval -> Gemini path stays grounded. It is not a generic upload-first workflow in the current locked demo.
+
 ## 6. Build Trusted Retrieval Support
 
-Place approved source documents in:
+The public repo already includes a prebuilt reviewer-facing index:
+
+```text
+data/retrieval/index.jsonl
+```
+
+If you want to rebuild it, place your own approved source documents in:
 
 ```text
 docs/references/
@@ -155,6 +177,8 @@ This writes:
 ```text
 data/retrieval/index.jsonl
 ```
+
+The retained `.meta.json` files under `docs/references/` document the metadata contract, but rebuilding requires actual `.md` or `.txt` source documents to be present alongside those metadata files.
 
 ## Formal Ablations
 

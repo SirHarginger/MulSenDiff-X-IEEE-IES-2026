@@ -1,0 +1,18 @@
+{
+  "basis": "anomaly_map",
+  "category": "zipper",
+  "fill_holes": false,
+  "mask_closing_kernel_size": 0,
+  "median_object_pixels": 49608.0,
+  "min_region_area_fraction": 0.0002,
+  "min_region_pixels": 10,
+  "object_mask_dilation_kernel_size": 9,
+  "object_mask_threshold": 0.02,
+  "q95": 1.1409927606582642,
+  "q99": 1.5713627338409424,
+  "quantile": 0.995,
+  "sample_count": 69,
+  "threshold": 1.6954007148742676,
+  "tuning_source": "calibration_good",
+  "value_count": 2934960
+}

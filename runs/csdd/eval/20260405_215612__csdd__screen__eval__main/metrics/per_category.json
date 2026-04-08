@@ -1,0 +1,15 @@
+{
+  "screen": {
+    "aupro": 0.076684,
+    "eval_samples": 42,
+    "image_auprc": 0.993474,
+    "image_auroc": 0.978125,
+    "image_f1": 0.0,
+    "mean_anomalous_score": 1.221256,
+    "mean_good_score": 0.802769,
+    "pixel_auroc": 0.506517,
+    "pixel_f1": 0.0,
+    "pixel_iou": 0.0,
+    "pixel_samples": 29
+  }
+}

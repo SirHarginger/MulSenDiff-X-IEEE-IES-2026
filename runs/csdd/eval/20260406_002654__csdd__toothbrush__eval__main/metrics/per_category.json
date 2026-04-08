@@ -1,0 +1,15 @@
+{
+  "toothbrush": {
+    "aupro": 0.31443,
+    "eval_samples": 35,
+    "image_auprc": 1.0,
+    "image_auroc": 1.0,
+    "image_f1": 0.958333,
+    "mean_anomalous_score": 0.716114,
+    "mean_good_score": 0.442507,
+    "pixel_auroc": 0.610447,
+    "pixel_f1": 0.028235,
+    "pixel_iou": 0.019672,
+    "pixel_samples": 20
+  }
+}

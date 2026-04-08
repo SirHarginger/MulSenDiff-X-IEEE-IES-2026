@@ -1,0 +1,9 @@
+{
+  "regime": "csdd",
+  "category_scope": "button_cell",
+  "source_train_run": "runs/csdd/train/20260405_151819__csdd__button_cell__train__main",
+  "source_eval_run": "runs/csdd/eval/20260405_155708__csdd__button_cell__eval__main",
+  "checkpoint_path": "model/csdd/button_cell/checkpoint.pt",
+  "config_path": "model/csdd/button_cell/config.json",
+  "summary_path": "model/csdd/button_cell/summary.json"
+}

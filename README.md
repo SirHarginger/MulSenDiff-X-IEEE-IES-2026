@@ -27,6 +27,68 @@ scripts/
 src/
 ```
 
+## Public Release Contents
+
+This public release is a **lightweight code + results + best-checkpoints repo**.
+
+Included:
+
+- cleaned source code, app, scripts, and docs
+- lightweight final eval artifacts for:
+  - `CCDD`
+  - `CADD`
+  - all 15 `CSDD` categories
+- published best checkpoints under `model/`
+- the prebuilt retrieval index at `data/retrieval/index.jsonl`
+- the public Gemini config template at `config/gemini.example.json`
+
+Intentionally omitted:
+
+- `data/raw/`
+- `data/processed/`
+- full `runs/*/train/`
+- epoch-by-epoch checkpoints
+- bulky eval `predictions/`
+- detailed `evidence/packages/` and `evidence/reports/`
+- `runs/app_sessions/`
+- local-only configs and temporary tooling files
+
+Heavy private artifacts remain in local storage / external drive and are not part of the GitHub release.
+
+### Public `runs/` policy
+
+The published `runs/` tree contains only the final **lightweight eval artifacts**. For each kept eval run, the public repo retains:
+
+- `summary.json`
+- `metrics/`
+- `plots/`
+- `manifests/manifest_summary.json`
+- top-level `evidence/*.json` calibration/index files used by the app and provenance flow
+
+The public repo excludes heavy eval internals such as:
+
+- `predictions/`
+- `evidence/packages/`
+- `evidence/reports/`
+- `logs/`
+- `checkpoints/`
+
+### Public `model/` policy
+
+The published `model/` tree is the checkpoint surface for the release:
+
+- `model/ccdd/checkpoint.pt`
+- `model/cadd/checkpoint.pt`
+- `model/csdd/<category>/checkpoint.pt`
+
+Each published checkpoint is accompanied by:
+
+- `config.json`
+- `summary.json`
+- `bundle_manifest.json`
+
+These model entries point back to the original source train/eval runs through their bundle manifest metadata.
+
 
 ## Dataset
 
@@ -90,7 +152,7 @@ The final workflow is:
 1. preprocess into `data/processed`
 2. train one regime
 3. evaluate immediately after training
-4. optionally export the selected eval bundle into `model/`
+4. optionally export or copy the selected best checkpoint into `model/`
 5. run the app from `model/` or directly from `runs/`
 
 ### Script Roles
@@ -178,21 +240,30 @@ This checks `data/processed`, preprocesses only when needed, then runs:
 - `cadd`
 - `csdd`
 
-### 4. Export App-Ready Model Bundles
+### 4. Export Or Publish Best Checkpoints
 
-Export a chosen eval run into `model/`:
+You can export a chosen eval run into `model/`:
 
 ```bash
 python scripts/export_model_bundle.py --eval-run runs/ccdd/eval/<eval_run_dir> --force
 ```
 
-The exported bundle is self-contained and includes:
+The export command creates a self-contained bundle with:
 
 - `summary.json`
 - `metrics/`
 - `evidence/`
 - `checkpoint.pt`
 - `config.json`
+
+For this public release, the published `model/` directory is lighter than a full exported bundle and keeps:
+
+- `checkpoint.pt`
+- `config.json`
+- `summary.json`
+- `bundle_manifest.json`
+
+The original full train runs remain private.
 
 ## App Quick Start
 

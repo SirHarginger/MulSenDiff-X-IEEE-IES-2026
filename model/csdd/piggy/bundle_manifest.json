@@ -1,0 +1,9 @@
+{
+  "regime": "csdd",
+  "category_scope": "piggy",
+  "source_train_run": "runs/csdd/train/20260405_200746__csdd__piggy__train__main",
+  "source_eval_run": "runs/csdd/eval/20260405_204922__csdd__piggy__eval__main",
+  "checkpoint_path": "model/csdd/piggy/checkpoint.pt",
+  "config_path": "model/csdd/piggy/config.json",
+  "summary_path": "model/csdd/piggy/summary.json"
+}

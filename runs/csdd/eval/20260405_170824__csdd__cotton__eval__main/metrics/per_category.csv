@@ -1,0 +1,2 @@
+aupro,category,eval_samples,image_auprc,image_auroc,image_f1,mean_anomalous_score,mean_good_score,pixel_auroc,pixel_f1,pixel_iou,pixel_samples
+0.421298,cotton,50,0.988161,0.9475,0.0,2.241057,1.00315,0.67357,0.0,0.0,8

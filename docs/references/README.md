@@ -1,15 +1,25 @@
-# Trusted References
+# Trusted Corpus Metadata
 
-Place approved manuals, process references, and other trusted explanation documents here.
+This public repository keeps the trusted-corpus layer lightweight.
 
-Each source file must have a sidecar metadata file with the same stem and suffix `.meta.json`.
+What is retained here:
 
-Example:
+- one `.meta.json` file per reference profile
+- the prebuilt retrieval index at `data/retrieval/index.jsonl`
 
-- `capsule_internal_defects.md`
-- `capsule_internal_defects.meta.json`
+What is intentionally not retained here:
 
-Required metadata fields:
+- the category-specific source markdown documents that were used to build the local trusted corpus during development
+
+This keeps the public repo cleaner for reviewers while preserving:
+
+- the retrieval metadata contract
+- the tag vocabulary used by the app
+- the prebuilt reviewer-facing index already used by the demo
+
+## Metadata Contract
+
+Each metadata file describes one trusted reference profile and follows this shape:
 
 ```json
 {
@@ -24,7 +34,27 @@ Required metadata fields:
 }
 ```
 
-Practical note:
+The retained `.meta.json` files are best treated as reviewer-visible retrieval metadata templates.
 
-- use category-specific `category_tags` for category-specific manuals or reference cases
-- rebuild `data/retrieval/index.jsonl` after changing these files
+## Runtime Behavior
+
+The app does not read these metadata files directly at runtime. It reads:
+
+- `data/retrieval/index.jsonl`
+
+So the public demo continues to work even though the category markdown source files are no longer included in `docs/references/`.
+
+## If You Want To Rebuild The Corpus
+
+Add your own approved source documents under `docs/references/` using:
+
+- `<name>.md` or `<name>.txt`
+- `<name>.meta.json`
+
+Then rebuild:
+
+```bash
+python scripts/build_trusted_corpus.py
+```
+
+Use category-aligned tags so retrieval remains consistent with detector evidence.

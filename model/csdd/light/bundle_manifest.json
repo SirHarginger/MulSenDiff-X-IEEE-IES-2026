@@ -1,0 +1,9 @@
+{
+  "regime": "csdd",
+  "category_scope": "light",
+  "source_train_run": "runs/csdd/train/20260405_183828__csdd__light__train__main",
+  "source_eval_run": "runs/csdd/eval/20260405_192054__csdd__light__eval__main",
+  "checkpoint_path": "model/csdd/light/checkpoint.pt",
+  "config_path": "model/csdd/light/config.json",
+  "summary_path": "model/csdd/light/summary.json"
+}

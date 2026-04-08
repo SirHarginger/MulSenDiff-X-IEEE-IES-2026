@@ -1,0 +1,18 @@
+{
+  "basis": "anomaly_map",
+  "category": "screw",
+  "fill_holes": false,
+  "mask_closing_kernel_size": 0,
+  "median_object_pixels": 13248.0,
+  "min_region_area_fraction": 0.0002,
+  "min_region_pixels": 4,
+  "object_mask_dilation_kernel_size": 9,
+  "object_mask_threshold": 0.02,
+  "q95": 0.7843736410140991,
+  "q99": 1.0275144577026367,
+  "quantile": 0.995,
+  "sample_count": 72,
+  "threshold": 1.122572660446167,
+  "tuning_source": "calibration_good",
+  "value_count": 969787
+}

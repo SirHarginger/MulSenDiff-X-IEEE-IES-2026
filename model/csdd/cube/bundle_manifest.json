@@ -1,0 +1,9 @@
+{
+  "regime": "csdd",
+  "category_scope": "cube",
+  "source_train_run": "runs/csdd/train/20260405_170925__csdd__cube__train__main",
+  "source_eval_run": "runs/csdd/eval/20260405_175525__csdd__cube__eval__main",
+  "checkpoint_path": "model/csdd/cube/checkpoint.pt",
+  "config_path": "model/csdd/cube/config.json",
+  "summary_path": "model/csdd/cube/summary.json"
+}

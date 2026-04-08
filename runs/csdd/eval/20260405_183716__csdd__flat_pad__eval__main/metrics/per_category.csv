@@ -1,0 +1,2 @@
+aupro,category,eval_samples,image_auprc,image_auroc,image_f1,mean_anomalous_score,mean_good_score,pixel_auroc,pixel_f1,pixel_iou,pixel_samples
+0.105969,flat_pad,40,0.90144,0.76,0.68,1.063196,0.794691,0.553125,0.09055,0.050711,30

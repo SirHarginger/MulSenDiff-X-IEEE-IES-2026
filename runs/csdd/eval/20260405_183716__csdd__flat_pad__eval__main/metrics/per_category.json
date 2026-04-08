@@ -1,0 +1,15 @@
+{
+  "flat_pad": {
+    "aupro": 0.105969,
+    "eval_samples": 40,
+    "image_auprc": 0.90144,
+    "image_auroc": 0.76,
+    "image_f1": 0.68,
+    "mean_anomalous_score": 1.063196,
+    "mean_good_score": 0.794691,
+    "pixel_auroc": 0.553125,
+    "pixel_f1": 0.09055,
+    "pixel_iou": 0.050711,
+    "pixel_samples": 30
+  }
+}

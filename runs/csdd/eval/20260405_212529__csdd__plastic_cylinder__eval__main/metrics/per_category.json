@@ -1,0 +1,15 @@
+{
+  "plastic_cylinder": {
+    "aupro": 0.256246,
+    "eval_samples": 38,
+    "image_auprc": 0.93339,
+    "image_auroc": 0.842857,
+    "image_f1": 0.585366,
+    "mean_anomalous_score": 1.094642,
+    "mean_good_score": 0.561908,
+    "pixel_auroc": 0.744782,
+    "pixel_f1": 0.170814,
+    "pixel_iou": 0.111002,
+    "pixel_samples": 17
+  }
+}

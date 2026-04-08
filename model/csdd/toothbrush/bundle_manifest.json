@@ -1,0 +1,9 @@
+{
+  "regime": "csdd",
+  "category_scope": "toothbrush",
+  "source_train_run": "runs/csdd/train/20260405_234717__csdd__toothbrush__train__main",
+  "source_eval_run": "runs/csdd/eval/20260406_002654__csdd__toothbrush__eval__main",
+  "checkpoint_path": "model/csdd/toothbrush/checkpoint.pt",
+  "config_path": "model/csdd/toothbrush/config.json",
+  "summary_path": "model/csdd/toothbrush/summary.json"
+}

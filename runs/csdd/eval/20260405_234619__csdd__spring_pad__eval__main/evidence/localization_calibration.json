@@ -1,0 +1,18 @@
+{
+  "basis": "anomaly_map",
+  "category": "spring_pad",
+  "fill_holes": false,
+  "mask_closing_kernel_size": 0,
+  "median_object_pixels": 16105.0,
+  "min_region_area_fraction": 0.002,
+  "min_region_pixels": 33,
+  "object_mask_dilation_kernel_size": 9,
+  "object_mask_threshold": 0.02,
+  "q95": 0.6725583672523499,
+  "q99": 0.9214404821395874,
+  "quantile": 0.995,
+  "sample_count": 69,
+  "threshold": 1.0322468280792236,
+  "tuning_source": "calibration_good",
+  "value_count": 1019686
+}

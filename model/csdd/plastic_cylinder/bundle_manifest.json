@@ -1,0 +1,9 @@
+{
+  "regime": "csdd",
+  "category_scope": "plastic_cylinder",
+  "source_train_run": "runs/csdd/train/20260405_205030__csdd__plastic_cylinder__train__main",
+  "source_eval_run": "runs/csdd/eval/20260405_212529__csdd__plastic_cylinder__eval__main",
+  "checkpoint_path": "model/csdd/plastic_cylinder/checkpoint.pt",
+  "config_path": "model/csdd/plastic_cylinder/config.json",
+  "summary_path": "model/csdd/plastic_cylinder/summary.json"
+}

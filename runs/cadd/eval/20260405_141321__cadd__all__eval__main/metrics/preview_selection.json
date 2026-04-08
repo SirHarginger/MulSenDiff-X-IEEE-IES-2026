@@ -1,0 +1,98 @@
+{
+  "effective_max_visualizations": 15,
+  "mode": "shared_joint",
+  "seed": 7,
+  "selected_samples": [
+    {
+      "category": "button_cell",
+      "defect_label": "good",
+      "sample_id": "005",
+      "sample_name": "button_cell__test__good__005"
+    },
+    {
+      "category": "capsule",
+      "defect_label": "broken_outside",
+      "sample_id": "001",
+      "sample_name": "capsule__test__broken_outside__001"
+    },
+    {
+      "category": "cotton",
+      "defect_label": "good",
+      "sample_id": "001",
+      "sample_name": "cotton__test__good__001"
+    },
+    {
+      "category": "cube",
+      "defect_label": "hole",
+      "sample_id": "007",
+      "sample_name": "cube__test__hole__007"
+    },
+    {
+      "category": "flat_pad",
+      "defect_label": "broken",
+      "sample_id": "003",
+      "sample_name": "flat_pad__test__broken__003"
+    },
+    {
+      "category": "light",
+      "defect_label": "broken",
+      "sample_id": "004",
+      "sample_name": "light__test__broken__004"
+    },
+    {
+      "category": "nut",
+      "defect_label": "scratch",
+      "sample_id": "002",
+      "sample_name": "nut__test__scratch__002"
+    },
+    {
+      "category": "piggy",
+      "defect_label": "color",
+      "sample_id": "000",
+      "sample_name": "piggy__test__color__000"
+    },
+    {
+      "category": "plastic_cylinder",
+      "defect_label": "good",
+      "sample_id": "007",
+      "sample_name": "plastic_cylinder__test__good__007"
+    },
+    {
+      "category": "screen",
+      "defect_label": "scratch",
+      "sample_id": "003",
+      "sample_name": "screen__test__scratch__003"
+    },
+    {
+      "category": "screw",
+      "defect_label": "broken",
+      "sample_id": "003",
+      "sample_name": "screw__test__broken__003"
+    },
+    {
+      "category": "solar_panel",
+      "defect_label": "good",
+      "sample_id": "001",
+      "sample_name": "solar_panel__test__good__001"
+    },
+    {
+      "category": "spring_pad",
+      "defect_label": "broken",
+      "sample_id": "007",
+      "sample_name": "spring_pad__test__broken__007"
+    },
+    {
+      "category": "toothbrush",
+      "defect_label": "broken",
+      "sample_id": "002",
+      "sample_name": "toothbrush__test__broken__002"
+    },
+    {
+      "category": "zipper",
+      "defect_label": "crack",
+      "sample_id": "005",
+      "sample_name": "zipper__test__crack__005"
+    }
+  ],
+  "strategy": "one_random_sample_per_category"
+}

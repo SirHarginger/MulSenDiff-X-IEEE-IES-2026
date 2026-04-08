@@ -1,0 +1,9 @@
+{
+  "regime": "csdd",
+  "category_scope": "nut",
+  "source_train_run": "runs/csdd/train/20260405_192202__csdd__nut__train__main",
+  "source_eval_run": "runs/csdd/eval/20260405_200633__csdd__nut__eval__main",
+  "checkpoint_path": "model/csdd/nut/checkpoint.pt",
+  "config_path": "model/csdd/nut/config.json",
+  "summary_path": "model/csdd/nut/summary.json"
+}

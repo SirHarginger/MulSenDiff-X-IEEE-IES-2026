@@ -4,6 +4,7 @@ import json
 import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from importlib import import_module
 from pathlib import Path
 from typing import Any, Dict, Mapping, Protocol, Sequence
 
@@ -74,7 +75,10 @@ class GeminiExplanationProvider:
         schema_block: Mapping[str, Any],
     ) -> Dict[str, Any]:
         if not self.config.enabled:
-            raise RuntimeError("Gemini is not configured. Set GOOGLE_API_KEY or GEMINI_API_KEY and rerun the inspection.")
+            raise RuntimeError(
+                "Gemini is not configured. Add your key to config/gemini.local.json "
+                "or set GOOGLE_API_KEY / GEMINI_API_KEY and rerun the inspection."
+            )
         try:
             from google import genai
         except ImportError as exc:  # pragma: no cover - environment-dependent
@@ -118,16 +122,86 @@ class GeminiExplanationProvider:
         }
 
 
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _load_local_gemini_json_config() -> Dict[str, str]:
+    candidates = [
+        _repo_root() / "config" / "gemini.local.json",
+        _repo_root() / "config" / "gemini.json",
+    ]
+    for path in candidates:
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to parse {path}. Check the JSON syntax."
+            ) from exc
+        if not isinstance(payload, Mapping):
+            raise RuntimeError(f"Expected {path} to contain a JSON object.")
+        return {
+            "api_key": str(
+                payload.get("api_key")
+                or payload.get("google_api_key")
+                or payload.get("gemini_api_key")
+                or ""
+            ).strip(),
+            "model": str(
+                payload.get("model")
+                or payload.get("gemini_model")
+                or ""
+            ).strip(),
+        }
+    return {}
+
+
+def _load_local_gemini_provider_config() -> Dict[str, str]:
+    try:
+        module = import_module("src.explainer.local_gemini_config")
+    except ModuleNotFoundError:
+        return {}
+    except Exception as exc:
+        raise RuntimeError(
+            "Failed to import src/explainer/local_gemini_config.py. "
+            "Check the file for syntax errors."
+        ) from exc
+
+    api_key = str(
+        getattr(module, "GOOGLE_API_KEY", "")
+        or getattr(module, "GEMINI_API_KEY", "")
+        or getattr(module, "MULSENDIFFX_GEMINI_API_KEY", "")
+        or ""
+    ).strip()
+    model = str(
+        getattr(module, "GEMINI_MODEL", "")
+        or getattr(module, "MULSENDIFFX_GEMINI_MODEL", "")
+        or ""
+    ).strip()
+    return {
+        "api_key": api_key,
+        "model": model,
+    }
+
+
 def load_gemini_provider_config(env: Mapping[str, str] | None = None) -> GeminiProviderConfig:
     resolved_env = dict(env or os.environ)
+    local_json_config = _load_local_gemini_json_config()
+    local_config = _load_local_gemini_provider_config()
     api_key = str(
-        resolved_env.get("GOOGLE_API_KEY")
+        local_json_config.get("api_key")
+        or local_config.get("api_key")
+        or resolved_env.get("GOOGLE_API_KEY")
         or resolved_env.get("GEMINI_API_KEY")
         or resolved_env.get("MULSENDIFFX_GEMINI_API_KEY")
         or ""
     ).strip()
     model = str(
-        resolved_env.get("MULSENDIFFX_GEMINI_MODEL")
+        local_json_config.get("model")
+        or local_config.get("model")
+        or resolved_env.get("MULSENDIFFX_GEMINI_MODEL")
         or resolved_env.get("GEMINI_MODEL")
         or "gemini-2.5-flash"
     ).strip()
@@ -287,7 +361,11 @@ def generate_operator_report(
     raw_text = ""
 
     if provider is None:
-        report = build_detector_only_report(package, recommended_state=recommended_state)
+        report = build_detector_only_report(
+            package,
+            recommended_state=recommended_state,
+            retrieved_context=context_pack["block_b_retrieved_support"],
+        )
         provider_name = "detector_fallback"
         used_fallback = True
     else:
@@ -307,7 +385,11 @@ def generate_operator_report(
             model_name = str(generated.get("model", model_name))
         except Exception as exc:
             provider_error = str(exc)
-            report = build_detector_only_report(package, recommended_state=recommended_state)
+            report = build_detector_only_report(
+                package,
+                recommended_state=recommended_state,
+                retrieved_context=context_pack["block_b_retrieved_support"],
+            )
             used_fallback = True
 
     return {
@@ -371,9 +453,16 @@ def sanitize_operator_report(
     )
 
 
-def build_detector_only_report(package: EvidencePackage, *, recommended_state: str) -> OperatorReport:
+def build_detector_only_report(
+    package: EvidencePackage,
+    *,
+    recommended_state: str,
+    retrieved_context: Sequence[Mapping[str, Any]] | None = None,
+) -> OperatorReport:
     dominant_modalities = ", ".join(package.retrieval_features.dominant_modalities[:2]) or "detector evidence"
     gate_mode = str(package.provenance.get("internal_defect_gate_mode", "")).strip()
+    retrieved_items = [_serialize_retrieved_context_item(item) for item in (retrieved_context or [])]
+    supporting_citations = _fallback_supporting_citations(retrieved_items)
     likely_cause = (
         "Likely cause is uncertain from detector evidence alone."
         if recommended_state == "abstained"
@@ -383,6 +472,11 @@ def build_detector_only_report(package: EvidencePackage, *, recommended_state: s
         likely_cause = "Cross-modal inconsistency suggests an internal defect profile."
     elif gate_mode == "thermal_hotspot":
         likely_cause = "Thermal hotspot evidence suggests an internally driven heat anomaly."
+    elif supporting_citations:
+        likely_cause = (
+            f"Detector evidence aligns most closely with the trusted reference "
+            f"'{supporting_citations[0].title}'."
+        )
 
     why_flagged = (
         f"MulSenDiff-X flagged this sample with score {package.raw_score:.4f}, "
@@ -392,17 +486,24 @@ def build_detector_only_report(package: EvidencePackage, *, recommended_state: s
         "Inspect the dominant region first, compare the indicated sensor cues, "
         "and verify whether the observed pattern matches the suspected defect mechanism."
     )
+    if supporting_citations:
+        recommended_action = (
+            f"Prioritize the checks described in '{supporting_citations[0].title}' and confirm whether "
+            "the observed detector cues match the referenced defect signature before deciding on rework."
+        )
     operator_summary = (
         f"{package.category} / {package.defect_label}: {package.status.lower()} with "
         f"{package.confidence_0_100:.1f}/100 confidence."
     )
+    if supporting_citations:
+        operator_summary += " Trusted reference support is available for this inspection."
     return OperatorReport(
         explanation_state=recommended_state,
         likely_cause=likely_cause,
         why_flagged=why_flagged,
         recommended_action=recommended_action,
         operator_summary=operator_summary,
-        supporting_citations=[],
+        supporting_citations=supporting_citations,
     )
 
 
@@ -577,6 +678,24 @@ def _downgrade_explanation_state(explanation_state: str, recommended_state: str)
     if explanation_state == "grounded":
         return "cautious"
     return recommended_state if recommended_state in {"cautious", "abstained"} else explanation_state
+
+
+def _fallback_supporting_citations(
+    retrieved_context: Sequence[Mapping[str, Any]],
+    *,
+    limit: int = 3,
+) -> list[SupportingCitation]:
+    citations: list[SupportingCitation] = []
+    for item in retrieved_context[: max(limit, 0) or 3]:
+        citations.append(
+            SupportingCitation(
+                title=str(item.get("title", "")),
+                source=str(item.get("source", "")),
+                snippet=str(item.get("snippet", "")),
+                relevance_reason=str(item.get("relevance_reason", "")),
+            )
+        )
+    return citations
 
 
 def _parse_structured_json_response(text: str) -> Dict[str, Any]:

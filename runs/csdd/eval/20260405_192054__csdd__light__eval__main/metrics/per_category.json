@@ -1,0 +1,15 @@
+{
+  "light": {
+    "aupro": 0.586408,
+    "eval_samples": 46,
+    "image_auprc": 0.980785,
+    "image_auroc": 0.936111,
+    "image_f1": 0.927536,
+    "mean_anomalous_score": 0.410833,
+    "mean_good_score": 0.263537,
+    "pixel_auroc": 0.884742,
+    "pixel_f1": 0.0,
+    "pixel_iou": 0.0,
+    "pixel_samples": 12
+  }
+}

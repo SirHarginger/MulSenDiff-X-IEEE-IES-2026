@@ -1,0 +1,18 @@
+{
+  "basis": "anomaly_map",
+  "category": "piggy",
+  "fill_holes": false,
+  "mask_closing_kernel_size": 0,
+  "median_object_pixels": 19918.0,
+  "min_region_area_fraction": 0.002,
+  "min_region_pixels": 40,
+  "object_mask_dilation_kernel_size": 9,
+  "object_mask_threshold": 0.02,
+  "q95": 0.5660672783851624,
+  "q99": 0.9032326936721802,
+  "quantile": 0.995,
+  "sample_count": 88,
+  "threshold": 1.0372902154922485,
+  "tuning_source": "calibration_good",
+  "value_count": 1710652
+}

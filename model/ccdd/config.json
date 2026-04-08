@@ -1,0 +1,999 @@
+{
+  "ablation_mode": "shared",
+  "amp_enabled": true,
+  "anomaly_map_gaussian_sigma": 3.0,
+  "anomaly_timestep": 200,
+  "attention_heads": 4,
+  "autoencoder_reconstruction_weight": 0.25,
+  "base_channels": 32,
+  "batch_size": 2,
+  "beta_end": 0.02,
+  "beta_start": 0.0001,
+  "category": "shared",
+  "category_embedding_dim": 32,
+  "category_vocabulary": [
+    "button_cell",
+    "capsule",
+    "cotton",
+    "cube",
+    "flat_pad",
+    "light",
+    "nut",
+    "piggy",
+    "plastic_cylinder",
+    "screen",
+    "screw",
+    "solar_panel",
+    "spring_pad",
+    "toothbrush",
+    "zipper"
+  ],
+  "cuda_available": true,
+  "cuda_device_count": 1,
+  "cuda_device_name": "Quadro P1000",
+  "descriptor_weight": 0.35,
+  "device": "cuda",
+  "device_mode": "cuda",
+  "diffusion_reconstruction_weight": 0.1,
+  "diffusion_steps": 1000,
+  "disable_category_embedding": false,
+  "edge_reconstruction_weight": 0.05,
+  "enable_category_modality_gating": false,
+  "enable_internal_defect_gate": false,
+  "epochs": 42,
+  "eval_manifest_csv": "/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/runs/ccdd/train/20260404_174514__ccdd__all__train__main/manifests/eval_manifest.csv",
+  "evaluation_protocol": "test_good_plus_anomaly",
+  "executable": "/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/.venv-p1000/bin/python",
+  "git_commit": "25468048d2f870eb4b860c3af5cce6d2fe0ab76e",
+  "git_dirty": true,
+  "global_descriptor_weight": 0.15,
+  "global_embedding_dim": 128,
+  "global_stats_json": "data/processed/manifests/global_feature_stats.json",
+  "global_vector_normalization_stats_by_category": {
+    "button_cell": {
+      "category": "button_cell",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.02057141666666667,
+        0.6862212777777779,
+        2.0601099722222225,
+        0.11510881944444444,
+        0.00909640277777778,
+        0.7222135694444444,
+        0.44193806944444447,
+        0.0002061388888888889,
+        0.061076000000000005,
+        0.030891402777777775
+      ],
+      "sample_count": 72,
+      "std": [
+        0.08026742317745483,
+        0.13829687586545494,
+        0.7449409011131535,
+        0.15919672712736474,
+        0.0005870822074680997,
+        0.12067526171493229,
+        0.00635392566171669,
+        0.0006620395948539037,
+        0.07054130365726641,
+        0.04076737482032106
+      ]
+    },
+    "capsule": {
+      "category": "capsule",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.0,
+        0.8029738235294117,
+        0.0,
+        0.0,
+        0.040452843137254904,
+        0.8455327843137256,
+        0.5568948039215685,
+        0.0003228823529411765,
+        0.02495872549019608,
+        0.044667392156862745
+      ],
+      "sample_count": 51,
+      "std": [
+        1e-06,
+        0.09536780972936675,
+        1e-06,
+        1e-06,
+        0.001744236170514571,
+        0.07368720505033387,
+        0.016201708167047708,
+        9.536876766239596e-05,
+        0.010136561353906318,
+        0.003851361272347032
+      ]
+    },
+    "cotton": {
+      "category": "cotton",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.0191711935483871,
+        0.676218693548387,
+        2.793174919354838,
+        0.02425661290322581,
+        0.17200775806451613,
+        0.6169274354838709,
+        0.7374458064516128,
+        0.00020330645161290324,
+        0.038666274193548386,
+        0.02587954838709677
+      ],
+      "sample_count": 62,
+      "std": [
+        0.03679980255550061,
+        0.1031780390606746,
+        0.32527603371113645,
+        0.02357669353774478,
+        0.03131682474412708,
+        0.17732349208298348,
+        0.20101873194594594,
+        0.00020227166247956645,
+        0.04278914310564235,
+        0.023113793929779334
+      ]
+    },
+    "cube": {
+      "category": "cube",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.013302215909090908,
+        0.683606784090909,
+        1.7276759772727273,
+        0.060863738636363636,
+        0.04300620454545454,
+        0.5591744090909091,
+        0.7179028977272727,
+        0.00025001136363636366,
+        0.026699420454545455,
+        0.03199932954545455
+      ],
+      "sample_count": 88,
+      "std": [
+        0.043727249108549124,
+        0.16704837680025839,
+        1.260594127390127,
+        0.0743068469034887,
+        0.0126054312961797,
+        0.20205896661166403,
+        0.06153641871061539,
+        0.0003518184415006676,
+        0.01344017121248629,
+        0.022421742759145834
+      ]
+    },
+    "flat_pad": {
+      "category": "flat_pad",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.04983223611111111,
+        0.8625517916666667,
+        2.363021041666667,
+        0.040784069444444446,
+        0.07862231944444445,
+        0.8119155,
+        0.7178025277777779,
+        0.0004472777777777777,
+        0.07546805555555557,
+        0.042377
+      ],
+      "sample_count": 72,
+      "std": [
+        0.16338088116563132,
+        0.057693939555337456,
+        0.16130992766156343,
+        0.011089410571108906,
+        0.01828294288919653,
+        0.11641040798268186,
+        0.13327406157113203,
+        0.0010338338871273467,
+        0.0694357478016525,
+        0.08667063098048586
+      ]
+    },
+    "light": {
+      "category": "light",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.004428511363636364,
+        0.6774092954545456,
+        2.2555439431818183,
+        0.10658278409090909,
+        0.01108928409090909,
+        0.5152445568181817,
+        0.5656993977272727,
+        6.789772727272727e-05,
+        0.09369668181818183,
+        0.017334352272727272
+      ],
+      "sample_count": 88,
+      "std": [
+        0.006722196517701498,
+        0.11551668751390609,
+        0.5256400075554942,
+        0.10349996174685822,
+        0.0017934476191052175,
+        0.21611868702199352,
+        0.019716716831813155,
+        3.0331891322473567e-05,
+        0.04645307940070121,
+        0.006548443947783899
+      ]
+    },
+    "nut": {
+      "category": "nut",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.0009340212765957447,
+        0.6613916489361702,
+        0.9138990425531914,
+        0.10232990425531914,
+        0.02532676595744681,
+        0.25892149999999997,
+        0.8146761595744679,
+        5.948936170212767e-05,
+        0.028844882978723403,
+        0.012024436170212767
+      ],
+      "sample_count": 94,
+      "std": [
+        0.0019133311542778699,
+        0.17354693945858157,
+        1.1452024995508288,
+        0.17960545582151044,
+        0.002979491858095626,
+        0.22813335141958282,
+        0.027679149442834984,
+        2.1131173241713277e-05,
+        0.019761118297807013,
+        0.0015985396630788977
+      ]
+    },
+    "piggy": {
+      "category": "piggy",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.007761852272727272,
+        0.8002517954545456,
+        2.225383306818182,
+        0.10478943181818182,
+        0.00994705681818182,
+        0.35335385227272725,
+        0.5189222954545454,
+        0.00022527272727272728,
+        0.06783660227272727,
+        0.026644022727272728
+      ],
+      "sample_count": 88,
+      "std": [
+        0.011372600461735547,
+        0.16853999324513988,
+        0.9715030882464526,
+        0.09790873213399436,
+        0.001754514458591909,
+        0.23079491055374735,
+        0.007005853348449374,
+        0.0001471107905992752,
+        0.03242795664256795,
+        0.00976673376590296
+      ]
+    },
+    "plastic_cylinder": {
+      "category": "plastic_cylinder",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.021909291666666667,
+        0.7676741111111111,
+        0.17580877777777776,
+        0.013769152777777778,
+        0.014574750000000001,
+        0.7726944305555556,
+        0.7864779166666667,
+        0.0005324166666666667,
+        0.071783,
+        0.03960573611111111
+      ],
+      "sample_count": 72,
+      "std": [
+        0.1148915572414843,
+        0.09868452300309692,
+        0.5839372133692546,
+        0.08329198508237613,
+        0.001135904836952071,
+        0.11776225916448341,
+        0.017389737561713744,
+        0.0008046688026414622,
+        0.03579937834849775,
+        0.050293864815809476
+      ]
+    },
+    "screen": {
+      "category": "screen",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.008222272727272727,
+        0.8161508545454547,
+        1.996519909090909,
+        0.14495083636363637,
+        0.06793676363636364,
+        0.5653916909090908,
+        0.5056744363636363,
+        9.996363636363635e-05,
+        0.040267727272727274,
+        0.02862512727272727
+      ],
+      "sample_count": 55,
+      "std": [
+        0.01500426909122812,
+        0.133402940111449,
+        0.9743858542129687,
+        0.11679402227274284,
+        0.022878031623819736,
+        0.22369769874159695,
+        0.34965586596900794,
+        0.00012335697844966615,
+        0.018430935839165576,
+        0.013363102112709859
+      ]
+    },
+    "screw": {
+      "category": "screw",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.0,
+        0.6789167222222221,
+        0.0,
+        0.0,
+        0.5041927222222223,
+        0.7853632361111111,
+        0.7402312361111111,
+        0.0037188055555555555,
+        0.07165179166666666,
+        0.495135375
+      ],
+      "sample_count": 72,
+      "std": [
+        1e-06,
+        0.13344593826915063,
+        1e-06,
+        1e-06,
+        0.15189023376248664,
+        0.1400361700408439,
+        0.03343749632253065,
+        0.0013099507373995328,
+        0.03673053845876054,
+        0.1553429769080374
+      ]
+    },
+    "solar_panel": {
+      "category": "solar_panel",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.01198026388888889,
+        0.797146388888889,
+        2.3860669722222223,
+        0.11345476388888888,
+        0.056113222222222224,
+        0.7519148055555556,
+        0.7503339027777778,
+        0.00024170833333333336,
+        0.021860916666666664,
+        0.026642152777777775
+      ],
+      "sample_count": 72,
+      "std": [
+        0.017447367755141184,
+        0.09347630568470217,
+        0.45275614860101787,
+        0.15648128056784488,
+        0.008000052489796934,
+        0.10981610622847823,
+        0.12274344294120156,
+        0.00021336831988501848,
+        0.012670725259596097,
+        0.00959397506635707
+      ]
+    },
+    "spring_pad": {
+      "category": "spring_pad",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.0,
+        0.7433258840579711,
+        0.0,
+        0.0,
+        0.016805130434782607,
+        0.614032115942029,
+        0.7709085072463769,
+        7.627536231884059e-05,
+        0.043343188405797095,
+        0.01533014492753623
+      ],
+      "sample_count": 69,
+      "std": [
+        1e-06,
+        0.16543445479596666,
+        1e-06,
+        1e-06,
+        0.001014702939510148,
+        0.25852450943985367,
+        0.04342832532206294,
+        2.9163151286935143e-05,
+        0.02994514001568044,
+        0.0014411171318430924
+      ]
+    },
+    "toothbrush": {
+      "category": "toothbrush",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.0011234204545454544,
+        0.7977295454545454,
+        0.6504485795454545,
+        0.1274778409090909,
+        0.09601540909090911,
+        0.8121502954545453,
+        0.8241414204545454,
+        7.378409090909091e-05,
+        0.16930082954545458,
+        0.025991420454545458
+      ],
+      "sample_count": 88,
+      "std": [
+        0.005323876848521008,
+        0.08013967751099399,
+        0.9791643533451895,
+        0.2505090034014785,
+        0.0016794562948409812,
+        0.09422399812272292,
+        0.08308935027409316,
+        0.00011683024289965219,
+        0.0407479272460078,
+        0.00437078722034037
+      ]
+    },
+    "zipper": {
+      "category": "zipper",
+      "feature_names": [
+        "ir_hotspot_area_fraction",
+        "ir_max_gradient",
+        "ir_mean_hotspot_intensity",
+        "ir_hotspot_compactness",
+        "pc_mean_curvature",
+        "pc_max_roughness",
+        "pc_p95_normal_deviation",
+        "cross_overlap_score",
+        "cross_centroid_distance",
+        "cross_inconsistency_score"
+      ],
+      "mean": [
+        0.019126840579710144,
+        0.6747044782608697,
+        1.747132724637681,
+        0.04411433333333334,
+        0.4945117101449276,
+        0.6540759130434782,
+        0.9991403768115942,
+        0.01262508695652174,
+        0.30189798550724634,
+        0.48653969565217386
+      ],
+      "sample_count": 69,
+      "std": [
+        0.07762732636288555,
+        0.13635343310416867,
+        0.9743335110624006,
+        0.12369520734973805,
+        0.15703299187714345,
+        0.11807868005781286,
+        0.005510943960545583,
+        0.013311092059576686,
+        0.0460898707179451,
+        0.14127204185873568
+      ]
+    }
+  },
+  "global_vector_normalization_stats_by_category_path": "/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/runs/ccdd/train/20260404_174514__ccdd__all__train__main/metrics/global_vector_stats_by_category.json",
+  "lambda_descriptor_global": 0.15,
+  "lambda_descriptor_spatial": 0.35,
+  "lambda_noise": 0.5,
+  "lambda_residual": 1.0,
+  "latent_channels": 4,
+  "learning_rate": 0.0001,
+  "localization_basis": "anomaly_map",
+  "localization_basis_candidates": [],
+  "localization_calibration_path": "/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/runs/ccdd/train/20260404_174514__ccdd__all__train__main/metrics/localization_calibration.json",
+  "localization_fill_holes": false,
+  "localization_mask_closing_kernel_size": 0,
+  "localization_min_region_area_fraction": 0.002,
+  "localization_min_region_pixels_floor": 4,
+  "localization_min_region_pixels_floor_candidates": [],
+  "localization_quantile": 0.995,
+  "localization_quantile_candidates": [],
+  "localization_tune_on_synthetic_validation": false,
+  "log_every_n_steps": 10,
+  "log_to_jsonl": true,
+  "max_eval_batches": 0,
+  "max_train_batches": 0,
+  "multi_timestep_fractions": [
+    0.05,
+    0.1,
+    0.2,
+    0.3,
+    0.4
+  ],
+  "multi_timestep_scoring_enabled": true,
+  "multiscale_conditioning": true,
+  "noise_schedule": "cosine",
+  "num_categories": 15,
+  "object_crop_enabled": true,
+  "object_crop_margin_ratio": 0.1,
+  "object_crop_mask_source": "rgb_then_pc_density",
+  "object_mask_dilation_kernel_size": 9,
+  "object_mask_threshold": 0.02,
+  "object_score_strategy": "legacy_raw",
+  "pixel_threshold_percentile": 0.9,
+  "platform": "Linux-6.17.0-14-generic-x86_64-with-glibc2.39",
+  "processed_root": "data/processed",
+  "python_version": "3.12.3",
+  "regime_expansion": "Category-Conditioned Descriptor Diffusion",
+  "regime_internal": "shared",
+  "regime_paper": "CCDD",
+  "resolved_device": "cuda",
+  "rgb_normalization_mode": "per_category_masked",
+  "rgb_normalization_stats": null,
+  "rgb_normalization_stats_by_category": {
+    "button_cell": {
+      "category": "button_cell",
+      "masked_pixels": 2637982,
+      "mean": [
+        0.46848426884500466,
+        0.44181545077784967,
+        0.3520878085924499
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.20997991857340711,
+        0.20735365056013993,
+        0.20019636186715664
+      ]
+    },
+    "capsule": {
+      "category": "capsule",
+      "masked_pixels": 2482348,
+      "mean": [
+        0.026328103853039433,
+        0.035824151218078255,
+        0.047274171765931905
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.06727319889075752,
+        0.08851626287415776,
+        0.08992031929389684
+      ]
+    },
+    "cotton": {
+      "category": "cotton",
+      "masked_pixels": 2020520,
+      "mean": [
+        0.12421790570000357,
+        0.1496240998053635,
+        0.14605418225166547
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.03548631683240637,
+        0.04135605785185554,
+        0.039567304271932016
+      ]
+    },
+    "cube": {
+      "category": "cube",
+      "masked_pixels": 5755250,
+      "mean": [
+        0.2182572999505136,
+        0.23069471536930666,
+        0.24112273915078264
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.2722318727623782,
+        0.28610930103478377,
+        0.27794395853138304
+      ]
+    },
+    "flat_pad": {
+      "category": "flat_pad",
+      "masked_pixels": 1999202,
+      "mean": [
+        0.34719484413706525,
+        0.3388596146638793,
+        0.2820558240453983
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.22352021919549156,
+        0.21877363584500106,
+        0.20201659053079868
+      ]
+    },
+    "light": {
+      "category": "light",
+      "masked_pixels": 2606728,
+      "mean": [
+        0.7513802360017511,
+        0.7430956804490774,
+        0.7148580504020219
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.3448515018012402,
+        0.3490766169042582,
+        0.3588784960660981
+      ]
+    },
+    "nut": {
+      "category": "nut",
+      "masked_pixels": 2798396,
+      "mean": [
+        0.17938137944478405,
+        0.20729965580640242,
+        0.21253955420316498
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.2244533213805138,
+        0.23648466052012068,
+        0.23271724000212946
+      ]
+    },
+    "piggy": {
+      "category": "piggy",
+      "masked_pixels": 2771878,
+      "mean": [
+        0.5103825527509757,
+        0.4777879998753871,
+        0.4580870570967607
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.15625632724291602,
+        0.1747153520633957,
+        0.19704148386813708
+      ]
+    },
+    "plastic_cylinder": {
+      "category": "plastic_cylinder",
+      "masked_pixels": 1635177,
+      "mean": [
+        0.1178344951257913,
+        0.31146295689361725,
+        0.7001747186391445
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.10871891613524559,
+        0.19940398885169228,
+        0.2910617716142509
+      ]
+    },
+    "screen": {
+      "category": "screen",
+      "masked_pixels": 1725712,
+      "mean": [
+        0.08173654072270738,
+        0.08586349134085736,
+        0.09547899546117239
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.11626356033118265,
+        0.1301137637458357,
+        0.16128161457931883
+      ]
+    },
+    "screw": {
+      "category": "screw",
+      "masked_pixels": 1756704,
+      "mean": [
+        0.24553714789148767,
+        0.2767448158188937,
+        0.26593433468116534
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.26008095850551527,
+        0.26951016898242275,
+        0.2639903527194563
+      ]
+    },
+    "solar_panel": {
+      "category": "solar_panel",
+      "masked_pixels": 3006118,
+      "mean": [
+        0.11330442907905465,
+        0.10093077086444387,
+        0.09781987907238335
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.12891854384947368,
+        0.11309197889179622,
+        0.09206982868404487
+      ]
+    },
+    "spring_pad": {
+      "category": "spring_pad",
+      "masked_pixels": 1618573,
+      "mean": [
+        0.33535001864581193,
+        0.33263274380584534,
+        0.2736478443239725
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.24262330928157297,
+        0.23581819688734026,
+        0.2100566675207833
+      ]
+    },
+    "toothbrush": {
+      "category": "toothbrush",
+      "masked_pixels": 1681476,
+      "mean": [
+        0.5077206228621972,
+        0.5363040949105552,
+        0.4813365457700428
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.32782306550854856,
+        0.33268379672991116,
+        0.3113805591021657
+      ]
+    },
+    "zipper": {
+      "category": "zipper",
+      "masked_pixels": 3505396,
+      "mean": [
+        0.11225617638794971,
+        0.11849588863621156,
+        0.12289720921981934
+      ],
+      "mode": "per_category_masked",
+      "std": [
+        0.054574831780423674,
+        0.060963517933414306,
+        0.0613273258399454
+      ]
+    }
+  },
+  "rgb_normalization_stats_by_category_path": "/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/runs/ccdd/train/20260404_174514__ccdd__all__train__main/metrics/rgb_normalization_stats_by_category.json",
+  "rgb_normalization_stats_path": "",
+  "runtime_fallback_reason": "",
+  "sampler_mode": "balanced_by_category",
+  "scope": "all",
+  "score_mode": "noise_error",
+  "score_weight_schedule": {
+    "main": {
+      "lambda_descriptor_global": 0.15,
+      "lambda_descriptor_spatial": 0.35,
+      "lambda_noise": 0.5,
+      "lambda_residual": 1.0
+    },
+    "transition_fraction": 0.6,
+    "warmup": {
+      "lambda_descriptor_global": 0.8,
+      "lambda_descriptor_spatial": 0.25,
+      "lambda_noise": 0.3,
+      "lambda_residual": 0.2
+    },
+    "warmup_fraction": 0.4
+  },
+  "seed": 7,
+  "selected_categories": [
+    "button_cell",
+    "capsule",
+    "cotton",
+    "cube",
+    "flat_pad",
+    "light",
+    "nut",
+    "piggy",
+    "plastic_cylinder",
+    "screen",
+    "screw",
+    "solar_panel",
+    "spring_pad",
+    "toothbrush",
+    "zipper"
+  ],
+  "selection_metric": "macro_image_auroc",
+  "spatial_topk_percent": 0.02,
+  "target_size": [
+    256,
+    256
+  ],
+  "time_embedding_dim": 128,
+  "torch_cuda_version": "11.8",
+  "torch_version": "2.7.1+cu118",
+  "train_category_counts": {
+    "button_cell": 72,
+    "capsule": 51,
+    "cotton": 62,
+    "cube": 88,
+    "flat_pad": 72,
+    "light": 88,
+    "nut": 94,
+    "piggy": 88,
+    "plastic_cylinder": 72,
+    "screen": 55,
+    "screw": 72,
+    "solar_panel": 72,
+    "spring_pad": 69,
+    "toothbrush": 88,
+    "zipper": 69
+  },
+  "train_manifest_csv": "/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/runs/ccdd/train/20260404_174514__ccdd__all__train__main/manifests/train_manifest.csv",
+  "training_mode": "shared_joint",
+  "training_protocol": "train_good_only"
+}

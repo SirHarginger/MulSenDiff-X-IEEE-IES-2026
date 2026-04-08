@@ -1,0 +1,15 @@
+{
+  "cube": {
+    "aupro": 0.168851,
+    "eval_samples": 51,
+    "image_auprc": 0.995206,
+    "image_auroc": 0.980488,
+    "image_f1": 0.876712,
+    "mean_anomalous_score": 0.756287,
+    "mean_good_score": 0.362547,
+    "pixel_auroc": 0.643793,
+    "pixel_f1": 0.0,
+    "pixel_iou": 0.0,
+    "pixel_samples": 33
+  }
+}

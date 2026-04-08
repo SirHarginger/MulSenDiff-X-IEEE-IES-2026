@@ -1,0 +1,22 @@
+{
+  "calibration_good_manifest_csv": "/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/runs/csdd/eval/20260405_215612__csdd__screen__eval__main/manifests/calibration_good_manifest.csv",
+  "calibration_records": 14,
+  "categories": [
+    "screen"
+  ],
+  "eval_manifest_csv": "/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/runs/csdd/eval/20260405_215612__csdd__screen__eval__main/manifests/eval_manifest.csv",
+  "eval_records": 42,
+  "eval_subset": "official_test",
+  "global_stats_json": "data/processed/manifests/global_feature_stats.json",
+  "official_test_manifest_csv": "/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/runs/csdd/eval/20260405_215612__csdd__screen__eval__main/manifests/official_test_manifest.csv",
+  "official_test_records": 42,
+  "processed_root": "data/processed",
+  "selection_manifest_csv": "/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/runs/csdd/eval/20260405_215612__csdd__screen__eval__main/manifests/selection_manifest.csv",
+  "selection_records": 56,
+  "synthetic_validation_manifest_csv": "/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/runs/csdd/eval/20260405_215612__csdd__screen__eval__main/manifests/synthetic_validation_manifest.csv",
+  "synthetic_validation_records": 42,
+  "train_core_good_manifest_csv": "/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/runs/csdd/eval/20260405_215612__csdd__screen__eval__main/manifests/train_core_good_manifest.csv",
+  "train_core_records": 55,
+  "train_manifest_csv": "/home/eddy/Downloads/sirharginger/MulSenDiff-X-IEEE-IES-2026/MulSenDiff-X-IEEE-IES-2026/runs/csdd/eval/20260405_215612__csdd__screen__eval__main/manifests/train_manifest.csv",
+  "train_records": 55
+}

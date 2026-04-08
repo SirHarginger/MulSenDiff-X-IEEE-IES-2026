@@ -1,0 +1,18 @@
+{
+  "basis": "anomaly_map",
+  "category": "solar_panel",
+  "fill_holes": false,
+  "mask_closing_kernel_size": 0,
+  "median_object_pixels": 28991.0,
+  "min_region_area_fraction": 0.002,
+  "min_region_pixels": 58,
+  "object_mask_dilation_kernel_size": 9,
+  "object_mask_threshold": 0.02,
+  "q95": 0.2963474988937378,
+  "q99": 0.5238391160964966,
+  "quantile": 0.995,
+  "sample_count": 72,
+  "threshold": 0.6314762830734253,
+  "tuning_source": "calibration_good",
+  "value_count": 1930556
+}

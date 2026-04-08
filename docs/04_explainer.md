@@ -10,7 +10,8 @@ The product-facing explanation flow is:
 
 1. MulSenDiff-X detects and localizes an anomaly.
 2. The detector exports a structured evidence payload.
-3. Gemini optionally converts that grounded payload into an operator-facing explanation.
+3. trusted retrieval attaches category-aligned reference support.
+4. Gemini turns that grounded payload into an operator-facing explanation.
 
 The detector remains the source of truth.
 
@@ -37,15 +38,17 @@ This package should be inspectable before any language generation happens.
 
 Gemini is:
 
-- optional at runtime
-- product-facing
-- downstream of detection
+- the intended product-facing explanation generator
+- downstream of detection and retrieval
+- constrained to detector-grounded evidence plus retrieved support
 
 Gemini is not:
 
 - part of detector scoring
 - part of calibration
 - part of the benchmark metrics
+
+If retrieval or Gemini is unavailable, the app falls back to a detector-grounded explanation card and makes that fallback state explicit in the UI.
 
 The intended structured Gemini output remains:
 
@@ -74,11 +77,12 @@ That means:
 The explanation layer should:
 
 - use only detector-grounded evidence
+- preserve trusted citations when retrieval succeeds
 - avoid unsupported causal claims
 - distinguish observation from hypothesis
 - express uncertainty when evidence is mixed
-- fail clearly if Gemini is unavailable rather than pretending to be an LLM with scripted text
+- degrade clearly if Gemini is unavailable rather than pretending a live LLM call succeeded
 
 ## App Note
 
-The current app is a paired-sample demo. The explanation it shows is only as trustworthy as the detector evidence produced for that matched sample.
+The current app is a curated one-page `CCDD` sample-selector demo. The explanation it shows is only as trustworthy as the detector evidence and trusted retrieval context available for that paired sample.

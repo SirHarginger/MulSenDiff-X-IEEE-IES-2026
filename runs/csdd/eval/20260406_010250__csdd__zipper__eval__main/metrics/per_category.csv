@@ -1,0 +1,2 @@
+aupro,category,eval_samples,image_auprc,image_auroc,image_f1,mean_anomalous_score,mean_good_score,pixel_auroc,pixel_f1,pixel_iou,pixel_samples
+0.137329,zipper,40,0.995238,0.983333,0.0,1.975327,1.144744,0.707465,0.0,0.0,19

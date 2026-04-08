@@ -258,6 +258,40 @@ def _load_object_score_calibration(
     return LogisticObjectScoreCalibration.from_dict(payload)
 
 
+def _infer_descriptor_channels_from_checkpoint(
+    checkpoint_payload: Mapping[str, Any],
+    *,
+    fallback: int = 7,
+) -> int:
+    state_dict = checkpoint_payload.get("model_state_dict", {})
+    if not isinstance(state_dict, Mapping):
+        return int(fallback)
+    first_weight = state_dict.get("descriptor_encoder.network.0.block.0.weight")
+    if first_weight is None:
+        return int(fallback)
+    shape = getattr(first_weight, "shape", None)
+    if shape is None or len(shape) < 2:
+        return int(fallback)
+    return int(shape[1])
+
+
+def _infer_num_categories_from_checkpoint(
+    checkpoint_payload: Mapping[str, Any],
+    *,
+    fallback: int = 1,
+) -> int:
+    state_dict = checkpoint_payload.get("model_state_dict", {})
+    if not isinstance(state_dict, Mapping):
+        return int(fallback)
+    embedding = state_dict.get("category_embedding.weight")
+    if embedding is None:
+        return int(fallback)
+    shape = getattr(embedding, "shape", None)
+    if shape is None or len(shape) < 1:
+        return int(fallback)
+    return max(int(shape[0]), 1)
+
+
 def load_shared_inference_session(
     *,
     repo_root: Path | str,
@@ -386,13 +420,24 @@ def load_shared_inference_session(
             resolved_object_score_calibration_path,
         )
 
+    descriptor_channels = int(
+        config.get("conditioning_channels")
+        or config.get("descriptor_channels")
+        or _infer_descriptor_channels_from_checkpoint(checkpoint_payload, fallback=7)
+    )
+    num_categories = 1 if disable_category_embedding else max(
+        len(category_vocabulary),
+        _infer_num_categories_from_checkpoint(checkpoint_payload, fallback=1),
+        1,
+    )
+
     model = build_model(
-        descriptor_channels=int(config.get("conditioning_channels", config.get("descriptor_channels", 7))),
+        descriptor_channels=descriptor_channels,
         global_dim=int(config.get("global_dim", 10)),
         base_channels=int(config.get("base_channels", 32)),
         global_embedding_dim=int(config.get("global_embedding_dim", 128)),
         time_embedding_dim=int(config.get("time_embedding_dim", 128)),
-        num_categories=1 if disable_category_embedding else max(len(category_vocabulary), 1),
+        num_categories=num_categories,
         category_embedding_dim=int(config.get("category_embedding_dim", 32)),
         enable_category_modality_gating=enable_category_modality_gating,
         attention_heads=int(config.get("attention_heads", 4)),

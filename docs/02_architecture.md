@@ -93,9 +93,10 @@ Current deployment story:
 
 1. MulSenDiff-X performs detection, localisation, and calibrated severity/area estimation.
 2. The detector exports a structured evidence payload.
-3. Gemini optionally turns that evidence into an operator-facing explanation.
+3. trusted retrieval attaches category-aligned support from `docs/references/`.
+4. Gemini turns that grounded evidence into an operator-facing explanation.
 
-Gemini is not part of detector scoring and should not be treated as the source of anomaly decisions.
+Gemini is not part of detector scoring and should not be treated as the source of anomaly decisions. In the current app, retrieval + Gemini are the intended explanation path, with detector-grounded fallback kept only for reliability.
 
 ## Paper Positioning
 

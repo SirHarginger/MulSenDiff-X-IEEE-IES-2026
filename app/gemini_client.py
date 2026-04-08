@@ -47,7 +47,7 @@ def generate_root_cause_explanation(
     evidence_bullets: Sequence[str] | None = None,
     reference_comparison: str | None = None,
 ) -> Dict[str, Any]:
-    provider = GeminiExplanationProvider(config) if config.enabled else None
+    provider = GeminiExplanationProvider(config) if config.enabled and bool(retrieved_context) else None
     return generate_operator_report(
         package=package,
         retrieved_context=retrieved_context,

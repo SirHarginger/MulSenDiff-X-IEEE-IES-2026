@@ -122,6 +122,8 @@ def retrieve_context_for_evidence(
     for chunk in chunks:
         if chunk.trust_level not in ALLOWED_TRUST_LEVELS:
             continue
+        if category and chunk.category_tags and category not in set(chunk.category_tags):
+            continue
 
         chunk_tokens = _chunk_recall_tokens(chunk)
         overlap = recall_tokens & chunk_tokens
@@ -175,7 +177,17 @@ def retrieve_context_for_evidence(
         )
 
     candidates.sort(key=lambda item: item.score, reverse=True)
-    return candidates[: max(top_k, 0) or 3]
+    deduped: List[RetrievedContextItem] = []
+    seen_keys: set[tuple[str, str]] = set()
+    for item in candidates:
+        key = (item.title, item.source)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        deduped.append(item)
+        if len(deduped) >= (max(top_k, 0) or 3):
+            break
+    return deduped
 
 
 def retrieve_reference_context_for_package(
