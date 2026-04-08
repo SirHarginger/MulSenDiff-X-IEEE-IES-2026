@@ -26,7 +26,7 @@ Place MulSen-AD here:
 data/raw/MulSen_AD
 ```
 
-Example:
+Download data:
 
 ```bash
 mkdir -p data/raw
@@ -133,6 +133,3 @@ cp config/gemini.example.json config/gemini.local.json
 * `runs/` train and eval outputs
 * do not write generated files into `data/raw/MulSen_AD`
 
-## License
-
-See `LICENSE`.
