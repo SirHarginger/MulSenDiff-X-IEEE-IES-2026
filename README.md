@@ -1,88 +1,66 @@
 # MulSenDiff-X
 
-MulSenDiff-X is a multimodal industrial anomaly detection system built on **MulSen-AD**. It uses RGB appearance as the main reconstruction target and conditions scoring with thermal and geometric evidence derived from infrared and point-cloud data.
+Diffusion-Driven Multi-Modal Industrial Anomaly Detection with detector-grounded natural-language root-cause explanation on MulSen-AD for the IEEE IES Generative AI Challenge 2026.
 
-The repo supports three detector regimes:
+This repository is a **code-only reproducibility release**. It contains the implementation, scripts, and configuration templates needed to reproduce the MulSenDiff-X workflow, but it does **not** ship raw data, processed data, checkpoints, completed runs, or app-ready runtime bundles.
 
-- `CCDD`: Category-Conditioned Descriptor Diffusion
-- `CADD`: Category-Agnostic Descriptor Diffusion
-- `CSDD`: Category-Specialized Descriptor Diffusion
+## What This Repo Contains
 
-It also includes:
+- `app/`: Streamlit demo and app-side runtime helpers
+- `src/`: preprocessing, training, evaluation, retrieval, and explainability code
+- `scripts/`: command-line entry points for preprocessing, training, evaluation, study orchestration, retrieval indexing, and app launch
+- `config/gemini.example.json`: tracked example config for local Gemini setup
+- dependency files, license, and this README
 
-- the preprocessing pipeline
-- train and evaluation workflows
-- a Streamlit inspection app
+## What This Repo Does Not Contain
 
-## Repo Layout
+- `MulSen-AD` raw data
+- processed sample bundles under `data/processed`
+- retrieval indices under `data/retrieval`
+- completed train or eval runs under `runs/`
+- checkpoints or exported app bundles
+- local Gemini secrets
 
-```text
-app/
-config/
-data/
-docs/
-runs/
-scripts/
-src/
-```
+Those assets stay local or are shared outside GitHub when needed.
 
-## Public Release Contents
+## Detector Regimes
 
-This public release is a **lightweight code + results repo**.
+- `CCDD`: Category-Conditioned Descriptor Diffusion. One shared detector with category identity available to the conditioning path.
+- `CADD`: Category-Agnostic Descriptor Diffusion. One shared detector without category identity.
+- `CSDD`: Category-Specialized Descriptor Diffusion. One detector per category.
 
-Included:
+## Reproducibility Levels
 
-- cleaned source code, app, scripts, and docs
-- lightweight final eval artifacts for:
-  - `CCDD`
-  - `CADD`
-  - all 15 `CSDD` categories
-- the prebuilt retrieval index at `data/retrieval/index.jsonl`
-- the public Gemini config template at `config/gemini.example.json`
+### Level 1: Code Reproduction
 
-Intentionally omitted:
+A fresh clone is enough to:
 
-- `data/raw/`
-- `data/processed/`
-- full `runs/*/train/`
-- epoch-by-epoch checkpoints
-- large `.pt` model weights
-- bulky eval `predictions/`
-- detailed `evidence/packages/` and `evidence/reports/`
-- `runs/app_sessions/`
-- local-only configs and temporary tooling files
+- inspect the full implementation
+- install the environment
+- preprocess MulSen-AD locally
+- train `CCDD`, `CADD`, and `CSDD`
+- evaluate those runs locally
+- build a trusted retrieval index locally
 
-Heavy private artifacts remain in local storage / external drive and are not part of the GitHub release.
+### Level 2: Full Runtime Reproduction
 
-### Public `runs/` policy
+To run the Streamlit demo app end-to-end, a fresh clone is **not** enough. You also need local runtime assets generated or provided outside GitHub:
 
-The published `runs/` tree contains only the final **lightweight eval artifacts**. For each kept eval run, the public repo retains:
+- processed sample bundles in `data/processed/`
+- evaluation runs in `runs/`
+- the checkpoints referenced by those eval runs
+- optionally a retrieval index at `data/retrieval/index.jsonl`
+- optionally a local Gemini config at `config/gemini.local.json`
 
-- `summary.json`
-- `metrics/`
-- `plots/`
-- `manifests/manifest_summary.json`
-- top-level `evidence/*.json` calibration/index files used by the app and provenance flow
+## Dataset Acquisition
 
-The public repo excludes heavy eval internals such as:
-
-- `predictions/`
-- `evidence/packages/`
-- `evidence/reports/`
-- `logs/`
-- `checkpoints/`
-
-## Dataset
-
-This repository contains code only. It does **not** redistribute the MulSen-AD dataset.
-
-Expected raw dataset location:
+This repository does not redistribute MulSen-AD. Obtain the dataset from the original source and place it at:
 
 ```text
 data/raw/MulSen_AD
 ```
 
-Example download flow:
+Example:
 
 ```bash
 mkdir -p data/raw
@@ -93,13 +71,12 @@ unzip data/raw/MulSen_AD.zip -d data/raw
 If `wget` is unavailable:
 
 ```bash
+mkdir -p data/raw
 curl -L "https://huggingface.co/datasets/orgjy314159/MulSen_AD/resolve/main/MulSen_AD.zip" -o data/raw/MulSen_AD.zip
 unzip data/raw/MulSen_AD.zip -d data/raw
 ```
 
-## Setup
-
-Create a virtual environment, install the repo requirements, then install the PyTorch build that matches the machine.
+## Environment Setup
 
 ### CPU
 
@@ -111,7 +88,7 @@ pip install -r requirements.txt
 pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cpu
 ```
 
-### CUDA
+### CUDA 11.8
 
 ```bash
 python3 -m venv .venv-cuda
@@ -121,71 +98,79 @@ pip install -r requirements.txt
 pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu118
 ```
 
-Verify the runtime:
+Verify the environment:
 
 ```bash
-python -c "import sys, torch; print('python:', sys.version.split()[0]); print('torch:', torch.__version__); print('cuda_available:', torch.cuda.is_available()); print('device_count:', torch.cuda.device_count()); print('device_name:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'none')"
+python -c "import sys, torch; print('python:', sys.version.split()[0]); print('torch:', torch.__version__); print('cuda_available:', torch.cuda.is_available())"
 ```
 
-## Workflow
+## Reproduce the Workflow
 
-The final workflow is:
-
-1. preprocess into `data/processed`
-2. train one regime
-3. evaluate immediately after training
-4. optionally export or copy the selected best checkpoint outside GitHub for private distribution
-5. run the app directly from `runs/`
-
-### Script Roles
-
-- `scripts/run_data_pipeline.py` = preprocess only
-- `scripts/run_training.py` = train only
-- `scripts/run_evaluation.py` = eval only
-- `scripts/run_regime_pipeline.py` = auto-preprocess if needed + train + eval for one regime
-- `scripts/run_study_pipeline.py` = auto-preprocess if needed + train + eval for multiple regimes
-
-So if you want full automation, use the pipeline scripts. If you want tighter control, you can still run preprocess, train, and eval separately.
-
-### 1. Preprocess
+### 1. Preprocess MulSen-AD
 
 ```bash
 python scripts/run_data_pipeline.py --processed-root data/processed
 ```
 
-### Train Only
+Expected local output:
 
-Examples:
+```text
+data/processed/samples/
+```
+
+### 2. Train a Detector Regime
+
+`CCDD`:
 
 ```bash
 python scripts/run_training.py --categories all --device-mode cuda --run-name main
+```
+
+`CADD`:
+
+```bash
 python scripts/run_training.py --categories all --disable-category-embedding --device-mode cuda --run-name main
+```
+
+`CSDD` example for one category:
+
+```bash
 python scripts/run_training.py --category capsule --device-mode cuda --run-name main
 ```
 
-These write training runs under:
+Expected local output:
 
-- `runs/ccdd/train/`
-- `runs/cadd/train/`
-- `runs/csdd/train/`
+```text
+runs/<regime>/train/<timestamped_run>/
+```
 
-### Eval Only
+### 3. Evaluate a Trained Run
 
-Examples:
+`CCDD`:
 
 ```bash
 python scripts/run_evaluation.py --checkpoint runs/ccdd/train/<train_run_dir>/checkpoints/best.pt --categories all --device-mode cuda --run-name main
+```
+
+`CADD`:
+
+```bash
 python scripts/run_evaluation.py --checkpoint runs/cadd/train/<train_run_dir>/checkpoints/best.pt --categories all --disable-category-embedding --device-mode cuda --run-name main
+```
+
+`CSDD` example for one category:
+
+```bash
 python scripts/run_evaluation.py --checkpoint runs/csdd/train/<train_run_dir>/checkpoints/best.pt --category capsule --device-mode cuda --run-name main
 ```
 
-These write evaluation runs under:
+Expected local output:
 
-- `runs/ccdd/eval/`
-- `runs/cadd/eval/`
-- `runs/csdd/eval/`
+```text
+runs/<regime>/eval/<timestamped_run>/
+```
 
-### 2. Run One Regime
+### 4. Run a Whole Regime End-to-End
 
 ```bash
 python scripts/run_regime_pipeline.py --regime ccdd --device-mode cuda --run-name main
@@ -193,106 +178,82 @@ python scripts/run_regime_pipeline.py --regime cadd --device-mode cuda --run-nam
 python scripts/run_regime_pipeline.py --regime csdd --device-mode cuda --run-name main
 ```
 
-What each regime does:
-
-- `ccdd`: one shared category-conditioned model
-- `cadd`: one shared model without category identity
-- `csdd`: one per-category model per class, each followed by its own eval run
-
-Outputs:
-
-- training runs go to `runs/<regime>/train/`
-- evaluation runs go to `runs/<regime>/eval/`
-
-Preprocessing behavior:
-
-- if `data/processed` already looks complete, the wrapper skips preprocessing automatically
-- use `--overwrite-preprocess` to force a rebuild
-- use `--skip-preprocess` to bypass the check entirely
-
-### 3. Run The Full Study
+### 5. Run the Full Study
 
 ```bash
 python scripts/run_study_pipeline.py --device-mode cuda --run-name main
 ```
 
-This checks `data/processed`, preprocesses only when needed, then runs:
+This local workflow will preprocess if needed and then run:
 
-- `ccdd`
-- `cadd`
-- `csdd`
+- `CCDD`
+- `CADD`
+- `CSDD`
 
-### 4. Export Best Checkpoints For External Hosting
+## Trusted Retrieval Index
 
-You can still export a chosen eval run into a local bundle if needed:
+The app’s RAG layer expects a locally built trusted corpus index. Create your own local reference folder and build the index into `data/retrieval/index.jsonl`.
 
-```bash
-python scripts/export_model_bundle.py --eval-run runs/ccdd/eval/<eval_run_dir> --force
-```
-
-The export command creates a self-contained local bundle with:
-
-- `summary.json`
-- `metrics/`
-- `evidence/`
-- `checkpoint.pt`
-- `config.json`
-
-For this public release, those exported bundles and `.pt` checkpoint files are intentionally kept out of GitHub. Host them externally, for example in Google Drive, when you need to share them privately with reviewers or judges.
-
-## App Quick Start
-
-MulSenDiff-X uses a detector-first explanation flow:
-
-1. detector runs first
-2. detector exports structured evidence
-3. retrieval searches a narrow trusted corpus
-4. Gemini generates a schema-constrained operator report
-
-
-Build the retrieval index into:
-
-```text
-data/retrieval/index.jsonl
-```
-
-Rebuild the retrieval index only after adding your own approved source files:
+Example:
 
 ```bash
-python scripts/build_trusted_corpus.py
+mkdir -p docs/references
+python scripts/build_trusted_corpus.py --source-root docs/references --output data/retrieval/index.jsonl
 ```
 
-Create the local Gemini config:
+Nothing under `docs/` or `data/retrieval/` is shipped in this public repo by default. Those are local runtime assets.
 
-```bash
-cp config/gemini.example.json config/gemini.local.json
-```
+## Streamlit App
 
-Then open `config/gemini.local.json` and set:
-
-```json
-{
-  "api_key": "your_key_here",
-  "model": "gemini-2.5-flash"
-}
-```
-
-
-The app will read this JSON file automatically, so the terminal only needs the run command below.
-
-Launch the app from the activated project environment:
+Launch command:
 
 ```bash
 python scripts/run_app.py --host 127.0.0.1 --port 8501 --headless
 ```
 
-Then open example:
+Open:
 
 ```text
 http://127.0.0.1:8501
 ```
 
-## Checks
+### Important
+
+The app is part of the repository because it is part of the system story, but it is **not expected to run from a fresh clone alone**. It needs local runtime assets:
+
+- processed samples in `data/processed/`
+- compatible eval runs in `runs/`
+- the checkpoints referenced by those eval runs
+- optionally `data/retrieval/index.jsonl` for retrieval
+- optionally `config/gemini.local.json` for Gemini
+
+To configure Gemini locally:
+
+```bash
+cp config/gemini.example.json config/gemini.local.json
+```
+
+Then edit `config/gemini.local.json`:
+
+```json
+{
+  "api_key": "paste_your_key_here",
+  "model": "gemini-2.5-flash"
+}
+```
+
+## Artifact Policy
+
+GitHub stays code-only on purpose. Large or generated artifacts are intentionally excluded because they are:
+
+- too large for a clean public repo
+- locally reproducible from this codebase
+- sometimes tied to dataset redistribution constraints
+- easier to share separately when needed
+
+If you need a runnable demo bundle for judging or private review, prepare it outside GitHub from your locally generated assets.
+
+## Quick Checks
 
 ```bash
 python scripts/run_data_pipeline.py --help
@@ -300,6 +261,10 @@ python scripts/run_training.py --help
 python scripts/run_evaluation.py --help
 python scripts/run_regime_pipeline.py --help
 python scripts/run_study_pipeline.py --help
-python scripts/export_model_bundle.py --help
+python scripts/build_trusted_corpus.py --help
 python scripts/run_app.py --help
 ```
+
+## License
+
+See [LICENSE](LICENSE).

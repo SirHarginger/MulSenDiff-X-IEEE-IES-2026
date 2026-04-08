@@ -1,2 +1,0 @@
-aupro,category,eval_samples,image_auprc,image_auroc,image_f1,mean_anomalous_score,mean_good_score,pixel_auroc,pixel_f1,pixel_iou,pixel_samples
-0.451553,solar_panel,49,0.875154,0.602564,0.676923,0.798958,0.699361,0.809245,0.270986,0.203893,12

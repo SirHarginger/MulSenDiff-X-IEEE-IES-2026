@@ -1,2 +1,0 @@
-aupro,category,eval_samples,image_auprc,image_auroc,image_f1,mean_anomalous_score,mean_good_score,pixel_auroc,pixel_f1,pixel_iou,pixel_samples
-0.092943,piggy,40,0.994709,0.983333,0.928571,0.582581,0.394266,0.451981,0.0,0.0,29

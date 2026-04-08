@@ -505,6 +505,37 @@ def render_top_bar(
     badge_cols[2].info(gemini_label)
 
 
+def render_external_assets_required(
+    *,
+    missing_items: Sequence[str],
+    retrieval_label: str,
+    gemini_label: str,
+) -> None:
+    render_top_bar(retrieval_label=retrieval_label, gemini_label=gemini_label)
+    st.warning(
+        "This public repository is code-only. The inspector cannot run from a fresh clone until local runtime assets are added."
+    )
+    st.markdown("**Required local assets**")
+    for item in missing_items:
+        st.write(f"- {item}")
+    st.markdown("**Local setup path**")
+    st.write("- Download MulSen-AD into `data/raw/MulSen_AD`.")
+    st.write("- Run preprocessing to create `data/processed/`.")
+    st.write("- Train and evaluate a regime so `runs/<regime>/eval/...` exists locally.")
+    st.write("- Optionally build `data/retrieval/index.jsonl` for RAG and add `config/gemini.local.json` for Gemini.")
+    st.code(
+        "\n".join(
+            [
+                "python scripts/run_data_pipeline.py --processed-root data/processed",
+                "python scripts/run_regime_pipeline.py --regime ccdd --device-mode cuda --run-name main",
+                "python scripts/build_trusted_corpus.py --source-root docs/references --output data/retrieval/index.jsonl",
+                "python scripts/run_app.py --host 127.0.0.1 --port 8501 --headless",
+            ]
+        ),
+        language="bash",
+    )
+
+
 def render_metadata_strip(record: ProcessedSampleRecord) -> None:
     cols = st.columns(4, gap="small")
     cols[0].metric("Category", record.category)
@@ -732,15 +763,27 @@ def main() -> None:
     inject_styles()
 
     evaluation_runs = find_available_evaluation_runs(REPO_ROOT)
+    gemini_config = load_gemini_config()
+    retrieval_root = REPO_ROOT / "data" / "retrieval"
+    retrieval_status = load_retrieval_status_cached(str(retrieval_root))
     if not evaluation_runs:
-        st.error("No app-ready evaluation runs were found under the repository.")
+        render_external_assets_required(
+            missing_items=[
+                "Evaluation runs under `runs/` with their referenced checkpoints",
+                "Processed sample bundles under `data/processed/`",
+                "Optional retrieval index at `data/retrieval/index.jsonl`",
+                "Optional Gemini config at `config/gemini.local.json`",
+            ],
+            retrieval_label=resolve_global_retrieval_label(retrieval_status),
+            gemini_label=resolve_global_gemini_label(
+                gemini_enabled=gemini_config.enabled,
+                explanation_bundle=None,
+            ),
+        )
         return
 
     selected_run = resolve_primary_demo_run(evaluation_runs)
     bundle = load_eval_bundle_cached(str(selected_run.root))
-    gemini_config = load_gemini_config()
-    retrieval_root = REPO_ROOT / "data" / "retrieval"
-    retrieval_status = load_retrieval_status_cached(str(retrieval_root))
 
     current_bundle = st.session_state.get("inspection_bundle")
     current_explanation = current_bundle.explanation if isinstance(current_bundle, InspectionBundle) else None
@@ -763,15 +806,50 @@ def main() -> None:
             preview_selection=bundle.get("preview_selection", {}),
             known_records=known_records,
         )
+    if not known_records:
+        render_external_assets_required(
+            missing_items=[
+                "Processed sample bundles under `data/processed/`",
+                "The eval run referenced above plus its checkpoint",
+                "Optional retrieval index at `data/retrieval/index.jsonl`",
+                "Optional Gemini config at `config/gemini.local.json`",
+            ],
+            retrieval_label=resolve_global_retrieval_label(retrieval_status),
+            gemini_label=resolve_global_gemini_label(
+                gemini_enabled=gemini_config.enabled,
+                explanation_bundle=current_explanation,
+            ),
+        )
+        return
     if not curated_records:
-        st.error("No curated paired samples could be resolved for the CCDD demo.")
-        st.markdown("</div>", unsafe_allow_html=True)
+        render_external_assets_required(
+            missing_items=[
+                "Curated processed sample records aligned with the selected eval run",
+                "Optional retrieval index at `data/retrieval/index.jsonl`",
+                "Optional Gemini config at `config/gemini.local.json`",
+            ],
+            retrieval_label=resolve_global_retrieval_label(retrieval_status),
+            gemini_label=resolve_global_gemini_label(
+                gemini_enabled=gemini_config.enabled,
+                explanation_bundle=current_explanation,
+            ),
+        )
         return
 
     categories = categories_in_demo(curated_records)
     if not categories:
-        st.error("The curated demo sample set is empty.")
-        st.markdown("</div>", unsafe_allow_html=True)
+        render_external_assets_required(
+            missing_items=[
+                "Curated paired sample records for the selected eval run",
+                "Optional retrieval index at `data/retrieval/index.jsonl`",
+                "Optional Gemini config at `config/gemini.local.json`",
+            ],
+            retrieval_label=resolve_global_retrieval_label(retrieval_status),
+            gemini_label=resolve_global_gemini_label(
+                gemini_enabled=gemini_config.enabled,
+                explanation_bundle=current_explanation,
+            ),
+        )
         return
 
     if "demo_selected_category" not in st.session_state:

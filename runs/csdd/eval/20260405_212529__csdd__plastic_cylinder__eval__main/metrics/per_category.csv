@@ -1,2 +1,0 @@
-aupro,category,eval_samples,image_auprc,image_auroc,image_f1,mean_anomalous_score,mean_good_score,pixel_auroc,pixel_f1,pixel_iou,pixel_samples
-0.256246,plastic_cylinder,38,0.93339,0.842857,0.585366,1.094642,0.561908,0.744782,0.170814,0.111002,17

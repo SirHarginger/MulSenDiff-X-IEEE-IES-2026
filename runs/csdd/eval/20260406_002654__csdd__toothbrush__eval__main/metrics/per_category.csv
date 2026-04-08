@@ -1,2 +1,0 @@
-aupro,category,eval_samples,image_auprc,image_auroc,image_f1,mean_anomalous_score,mean_good_score,pixel_auroc,pixel_f1,pixel_iou,pixel_samples
-0.31443,toothbrush,35,1.0,1.0,0.958333,0.716114,0.442507,0.610447,0.028235,0.019672,20
