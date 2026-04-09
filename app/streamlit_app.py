@@ -49,8 +49,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-DISPLAY_PANEL_SIZE = 400
-REFERENCE_PANEL_SIZE = 150
+DISPLAY_PANEL_SIZE = 300
+REFERENCE_PANEL_SIZE = 96
 DEFAULT_DEMO_CATEGORY = "zipper"
 
 
@@ -64,11 +64,14 @@ def inject_styles() -> None:
             }
             .block-container {
                 max-width: 1320px;
-                padding-top: 0.8rem;
-                padding-bottom: 0.7rem;
+                padding-top: 0.45rem;
+                padding-bottom: 0.35rem;
             }
             h1, h2, h3, h4, p, label, span {
                 color: #0f172a;
+            }
+            h1, h2, h3 {
+                margin-bottom: 0.2rem;
             }
             [data-testid="stMetricLabel"], [data-testid="stMetricValue"] {
                 color: #0f172a !important;
@@ -76,13 +79,16 @@ def inject_styles() -> None:
             [data-testid="stCaptionContainer"] {
                 color: #475569 !important;
             }
+            [data-testid="stMarkdownContainer"] p {
+                margin-bottom: 0.32rem;
+            }
             [data-testid="stSelectbox"] label,
             [data-testid="stButton"] label {
                 color: #0f172a !important;
             }
             .stButton > button {
                 border-radius: 14px;
-                height: 3rem;
+                height: 2.75rem;
                 font-weight: 700;
                 background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
                 border: none;
@@ -90,7 +96,7 @@ def inject_styles() -> None:
             }
             .stDownloadButton > button {
                 border-radius: 14px;
-                height: 2.8rem;
+                height: 2.55rem;
                 font-weight: 700;
             }
             .stSelectbox [data-baseweb="select"] {
@@ -423,6 +429,9 @@ def build_download_report(
     selected_record: ProcessedSampleRecord,
 ) -> str:
     report = explanation.report
+    localization_title, localization_detail = summarize_localization(
+        EvidenceSummary(package=package, regions=list(regions), bullets=[])
+    )
     lines = [
         "# MulSenDiff-X Inspection Report",
         "",
@@ -432,8 +441,8 @@ def build_download_report(
         f"- Explanation mode: {explanation.mode_label}",
         f"- Status: {package.status}",
         f"- Anomaly score: {package.raw_score:.6f}",
-        f"- Severity: {package.severity_0_100:.1f}/100",
-        f"- Affected area: {package.affected_area_pct:.2f}%",
+        f"- Localization status: {localization_title}",
+        f"- Localization note: {localization_detail}",
         "",
         "## Detected Regions",
     ]
@@ -472,7 +481,14 @@ def build_download_report(
         lines.append("- Supporting citations: none")
 
     if explanation.error_message:
-        lines.extend(["", "## Explainability Note", f"- {explanation.error_message}"])
+        lines.extend(
+            [
+                "",
+                "## Explainability Note",
+                "- Gemini was temporarily unavailable for this inspection. "
+                "The explanation above uses the detector-grounded fallback path.",
+            ]
+        )
     return "\n".join(lines)
 
 
@@ -497,12 +513,19 @@ def render_top_bar(
     retrieval_label: str,
     gemini_label: str,
 ) -> None:
-    st.title("MulSenDiff-X Inspector")
-    st.caption("Single-page paired-sample inspection with detector-grounded retrieval and Gemini explanation.")
-    badge_cols = st.columns(3, gap="small")
-    badge_cols[0].info("Model: CCDD demo")
-    badge_cols[1].info(retrieval_label)
-    badge_cols[2].info(gemini_label)
+    title_cols = st.columns([1.45, 0.6, 0.8, 0.8], gap="small")
+    with title_cols[0]:
+        st.markdown("## MulSenDiff-X Inspector")
+        st.caption("Detector-first anomaly inspection with trusted retrieval and Gemini explanation.")
+    with title_cols[1]:
+        st.caption("Model")
+        st.write("`CCDD` demo")
+    with title_cols[2]:
+        st.caption("Retrieval")
+        st.write(retrieval_label)
+    with title_cols[3]:
+        st.caption("Gemini")
+        st.write(gemini_label)
 
 
 def render_external_assets_required(
@@ -538,17 +561,40 @@ def render_external_assets_required(
 
 def render_metadata_strip(record: ProcessedSampleRecord) -> None:
     cols = st.columns(4, gap="small")
-    cols[0].metric("Category", record.category)
-    cols[1].metric("Defect", record.defect_label)
-    cols[2].metric("Split", record.split)
-    cols[3].metric("Sample ID", record.sample_id)
+    metadata = [
+        ("Category", record.category),
+        ("Defect", record.defect_label),
+        ("Split", record.split),
+        ("Sample ID", record.sample_id),
+    ]
+    for col, (label, value) in zip(cols, metadata):
+        with col:
+            st.caption(label)
+            st.markdown(f"**{value}**")
 
 
-def render_metrics_strip(package: EvidencePackage) -> None:
-    cols = st.columns(3, gap="small")
-    cols[0].metric("Score", f"{package.raw_score:.4f}")
-    cols[1].metric("Severity", f"{package.severity_0_100:.1f}/100")
-    cols[2].metric("Area", f"{package.affected_area_pct:.2f}%")
+def summarize_localization(evidence: EvidenceSummary) -> tuple[str, str]:
+    primary_region = evidence.regions[0] if evidence.regions else None
+    if primary_region is None:
+        return (
+            "No stable connected region extracted",
+            "Image-level anomaly evidence is present, but the thresholded localization mask did not produce a stable connected defect region for this inspection.",
+        )
+    return (
+        f"{str(primary_region['label']).title()} region extracted",
+        f"Dominant localized response appears in the {primary_region['label']} with "
+        f"{primary_region['intensity_label']} evidence. The thresholded connected region covers "
+        f"{float(primary_region['area_percent']):.2f}% of the detected object.",
+    )
+
+
+def summarize_reference_support(explanation: ExplanationBundle) -> str:
+    cited_count = len(explanation.report.get("supporting_citations", []))
+    if cited_count > 0:
+        return f"{cited_count} cited source{'s' if cited_count != 1 else ''}"
+    if explanation.retrieval.context_count > 0:
+        return f"{explanation.retrieval.context_count} retrieved reference{'s' if explanation.retrieval.context_count != 1 else ''}"
+    return "No retrieved references"
 
 
 def render_visuals(record: ProcessedSampleRecord, visuals: InspectionVisuals) -> None:
@@ -558,21 +604,28 @@ def render_visuals(record: ProcessedSampleRecord, visuals: InspectionVisuals) ->
         st.image(visuals.original_image, caption="Inspection RGB", use_container_width=False)
     with image_cols[1]:
         st.image(visuals.overlay_image, caption="Localized anomaly overlay", use_container_width=False)
-    ref_cols = st.columns([0.28, 0.72], gap="medium")
+    ref_cols = st.columns([0.22, 0.78], gap="medium")
     with ref_cols[0]:
         if visuals.reference_image is not None:
             st.image(visuals.reference_image, caption="Normal reference", use_container_width=False)
     with ref_cols[1]:
         render_metadata_strip(record)
-    st.divider()
 
 
-def render_decision_card(package: EvidencePackage, explanation: ExplanationBundle) -> None:
+def render_decision_card(evidence: EvidenceSummary, explanation: ExplanationBundle) -> None:
+    package = evidence.package
+    localization_title, localization_detail = summarize_localization(evidence)
     st.subheader("Decision")
-    st.write(f"**Status:** {package.status}")
+    st.write(f"**Inspection outcome:** {package.status}")
     st.write(f"**Explainability mode:** {explanation.mode_label}")
-    render_metrics_strip(package)
-    st.divider()
+    st.caption("Detector score is the primary decision signal. Retrieval and Gemini support operator explanation.")
+    metric_cols = st.columns([0.75, 1.25], gap="small")
+    metric_cols[0].metric("Anomaly score", f"{package.raw_score:.4f}")
+    with metric_cols[1]:
+        st.caption("Reference support")
+        st.write(summarize_reference_support(explanation))
+    st.markdown(f"**Localization status:** {localization_title}")
+    st.caption(localization_detail)
 
 
 def _render_report_block(title: str, text: str) -> str:
@@ -586,64 +639,56 @@ def _render_report_block(title: str, text: str) -> str:
 
 def render_explanation_card(explanation: ExplanationBundle) -> None:
     report = explanation.report
-    state_message = ""
-    if explanation.error_message:
-        state_message = explanation.error_message
-    elif explanation.retrieval.context_count <= 0:
-        state_message = "Trusted references were not retrieved, so this explanation is detector-grounded fallback."
+    st.subheader("Gemini Explanation")
+    if explanation.retrieval.context_count <= 0:
+        st.warning(
+            "Trusted references were not retrieved for this inspection. The explanation below is detector-grounded only."
+        )
     elif explanation.used_fallback:
-        state_message = "Trusted references were retrieved, but Gemini was unavailable, so the report uses grounded fallback text."
-
-    st.subheader("Root-Cause Explanation")
-    if state_message:
-        st.info(state_message)
+        st.warning(
+            "Gemini was temporarily unavailable for this inspection. The explanation below uses the detector-grounded fallback built from the same retrieved references."
+        )
+    else:
+        st.caption("Generated by Gemini from detector evidence and the retrieved trusted references.")
     st.markdown(f"**Likely Cause**  \n{report.get('likely_cause', '')}")
     st.markdown(f"**Why Flagged**  \n{report.get('why_flagged', '')}")
     st.markdown(f"**Recommended Action**  \n{report.get('recommended_action', '')}")
     summary = str(report.get("operator_summary", "")).strip()
     if summary:
-        st.success(summary)
-    st.divider()
+        st.markdown(f"**Operator Summary**  \n{summary}")
 
 
 def render_evidence_card(evidence: EvidenceSummary) -> None:
     package = evidence.package
+    localization_title, localization_detail = summarize_localization(evidence)
     st.subheader("Evidence Summary")
-    primary_region = evidence.regions[0] if evidence.regions else None
-    if primary_region is not None:
-        st.write(
-            f"Dominant region: **{primary_region['label']}**, "
-            f"{primary_region['intensity_label']}, {float(primary_region['area_percent']):.2f}% of the object."
-        )
-    else:
-        st.write("No connected localization region was extracted from the current mask.")
+    st.write(f"**Localization status:** {localization_title}")
+    st.write(localization_detail)
     st.markdown("**Detector evidence**")
-    for item in evidence.bullets:
+    for item in evidence.bullets[:3]:
         st.write(f"- {item}")
     st.caption(
         f"Global descriptor contribution: {package.evidence_breakdown.get('global_descriptor_pct', 0.0):.1f}% · "
         f"score-basis contribution: {package.evidence_breakdown.get('score_basis_pct', 0.0):.1f}%"
     )
-    st.divider()
 
 
 def render_support_card(explanation: ExplanationBundle) -> None:
     citations = explanation.report.get("supporting_citations", [])
     retrieval_items = explanation.retrieval.items
-    st.subheader("Supporting References")
+    st.subheader("Trusted Reference Support")
     if citations:
-        for citation in citations:
+        for citation in citations[:2]:
             st.markdown(f"**{citation.get('title', '')}**")
             st.caption(f"{citation.get('source', '')} · {citation.get('relevance_reason', '')}")
-            st.write(str(citation.get("snippet", "")))
+            st.write(str(citation.get("snippet", ""))[:220])
     elif retrieval_items:
-        for item in retrieval_items[:3]:
+        for item in retrieval_items[:2]:
             st.markdown(f"**{item.get('title', '')}**")
             st.caption(f"score {float(item.get('score', 0.0)):.3f} · {item.get('relevance_reason', '')}")
-            st.write(str(item.get("snippet", "")))
+            st.write(str(item.get("snippet", ""))[:220])
     else:
         st.info("No trusted reference context was retrieved for this inspection.")
-    st.divider()
 
 
 def render_debug_details(bundle: InspectionBundle) -> None:
@@ -862,7 +907,7 @@ def main() -> None:
     if str(st.session_state.get("demo_selected_sample_name", "")) not in sample_lookup:
         st.session_state["demo_selected_sample_name"] = default_sample_name
 
-    control_cols = st.columns([0.95, 1.05, 0.42, 0.52, 1.06], gap="medium")
+    control_cols = st.columns([0.92, 1.02, 0.36, 0.52, 0.98], gap="small")
     with control_cols[0]:
         selected_category = st.selectbox(
             "Category",
@@ -897,8 +942,7 @@ def main() -> None:
     with control_cols[4]:
         st.markdown("**Demo Contract**")
         st.caption(
-            "Curated paired-sample demo. The interface runs the shared CCDD detector and keeps the "
-            "full detector -> trusted retrieval -> Gemini chain grounded in RGB, IR, and 3D evidence."
+            "Curated paired-sample inspection. The detector decides the anomaly outcome; Gemini writes the explanation from detector evidence and retrieved references."
         )
 
     should_run = bool(st.session_state.get("demo_inspect_clicked", False))
@@ -921,16 +965,14 @@ def main() -> None:
         st.info("Choose a curated sample and click `Inspect` to run the paired multi-sensor demo.")
         return
 
-    layout_cols = st.columns([1.16, 0.84], gap="large")
+    layout_cols = st.columns([1.02, 0.98], gap="medium")
     with layout_cols[0]:
         render_visuals(selected_record, inspection_bundle.visuals)
         render_evidence_card(inspection_bundle.evidence)
     with layout_cols[1]:
-        render_decision_card(inspection_bundle.evidence.package, inspection_bundle.explanation)
+        render_decision_card(inspection_bundle.evidence, inspection_bundle.explanation)
         render_explanation_card(inspection_bundle.explanation)
         render_support_card(inspection_bundle.explanation)
-
-    render_debug_details(inspection_bundle)
 
 
 if __name__ == "__main__":
