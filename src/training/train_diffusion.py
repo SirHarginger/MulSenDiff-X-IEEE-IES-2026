@@ -39,7 +39,9 @@ from src.evaluation.metrics import (
     image_average_precision,
     image_level_auroc,
     intersection_over_union,
+    pixel_f1_max,
     pixel_level_auroc,
+    pixel_level_average_precision,
 )
 from src.project_layout import (
     default_output_root,
@@ -1890,9 +1892,29 @@ def run_eval_scoring(
                 ),
                 6,
             ),
+            "pixel_aupr": round(
+                float(
+                    pixel_level_average_precision(
+                        category_pixel_bucket["score_maps"],
+                        category_pixel_bucket["target_masks"],
+                        category_pixel_bucket["object_masks"],
+                    )
+                ),
+                6,
+            ),
             "aupro": round(
                 float(
                     aupro(
+                        category_pixel_bucket["score_maps"],
+                        category_pixel_bucket["target_masks"],
+                        category_pixel_bucket["object_masks"],
+                    )
+                ),
+                6,
+            ),
+            "pixel_f1_max": round(
+                float(
+                    pixel_f1_max(
                         category_pixel_bucket["score_maps"],
                         category_pixel_bucket["target_masks"],
                         category_pixel_bucket["object_masks"],
@@ -1913,7 +1935,9 @@ def run_eval_scoring(
         "mean_good_score",
         "mean_anomalous_score",
         "pixel_auroc",
+        "pixel_aupr",
         "aupro",
+        "pixel_f1_max",
         "pixel_f1",
         "pixel_iou",
     ]
@@ -1946,7 +1970,27 @@ def run_eval_scoring(
         "localization_basis": localization_basis,
         "object_mask_dilation_kernel_size": int(object_mask_dilation_kernel_size),
         "pixel_auroc": round(float(pooled_pixel_auroc), 6),
+        "pixel_aupr": round(
+            float(
+                pixel_level_average_precision(
+                    pooled_pixel_score_maps,
+                    pooled_pixel_target_masks,
+                    pooled_pixel_object_masks,
+                )
+            ),
+            6,
+        ),
         "aupro": round(float(pooled_aupro), 6),
+        "pixel_f1_max": round(
+            float(
+                pixel_f1_max(
+                    pooled_pixel_score_maps,
+                    pooled_pixel_target_masks,
+                    pooled_pixel_object_masks,
+                )
+            ),
+            6,
+        ),
         "pixel_f1": round(sum(pixel_f1_values) / max(len(pixel_f1_values), 1), 6),
         "pixel_iou": round(sum(pixel_iou_values) / max(len(pixel_iou_values), 1), 6),
         "pixel_samples": len(pixel_f1_values),
@@ -2795,13 +2839,17 @@ def train_model(
             "image_auprc": eval_summary["image_auprc"],
             "image_f1": eval_summary["image_f1"],
             "pixel_auroc": eval_summary["pixel_auroc"],
+            "pixel_aupr": eval_summary["pixel_aupr"],
             "aupro": eval_summary["aupro"],
+            "pixel_f1_max": eval_summary["pixel_f1_max"],
             "pixel_f1": eval_summary["pixel_f1"],
             "pixel_iou": eval_summary["pixel_iou"],
             "macro_image_auroc": eval_summary.get("macro_image_auroc", eval_summary["image_auroc"]),
             "macro_image_auprc": eval_summary.get("macro_image_auprc", eval_summary["image_auprc"]),
             "macro_pixel_auroc": eval_summary.get("macro_pixel_auroc", eval_summary["pixel_auroc"]),
+            "macro_pixel_aupr": eval_summary.get("macro_pixel_aupr", eval_summary["pixel_aupr"]),
             "macro_aupro": eval_summary.get("macro_aupro", eval_summary["aupro"]),
+            "macro_pixel_f1_max": eval_summary.get("macro_pixel_f1_max", eval_summary["pixel_f1_max"]),
             "mean_good_score": eval_summary["mean_good_score"],
             "mean_anomalous_score": eval_summary["mean_anomalous_score"],
             "selected_metric": round(selected_metric_value, 6),
@@ -3124,7 +3172,7 @@ def evaluate_checkpoint(
     rgb_stats_by_category: Dict[str, RGBNormalizationStats] | None = loaders["rgb_normalization_stats_by_category"]  # type: ignore[assignment]
     category_vocabulary = list(loaders["category_vocabulary"])  # type: ignore[assignment]
     joint_mode = len(category_vocabulary) > 1
-    reported_selected_categories = category_vocabulary if joint_mode and scope == "all" else selected_categories
+    reported_selected_categories = list(selected_categories) if selected_categories else list(category_vocabulary)
 
     model = build_model(
         descriptor_channels=int(checkpoint_config.get("conditioning_channels", eval_dataset.conditioning_channels)),
@@ -3811,6 +3859,7 @@ def evaluate_checkpoint(
         "loaded_epoch": int(payload.get("epoch", 0)),
         "category": "shared" if joint_mode else reported_selected_categories[0],
         "selected_categories": reported_selected_categories,
+        "category_vocabulary": category_vocabulary,
         "scope": scope,
         "training_mode": "shared_joint" if joint_mode else "single_category",
         "disable_category_embedding": resolved_disable_category_embedding,
@@ -3836,8 +3885,12 @@ def evaluate_checkpoint(
         "image_f1": eval_summary["image_f1"],
         "pixel_auroc": eval_summary["pixel_auroc"],
         "macro_pixel_auroc": eval_summary.get("macro_pixel_auroc", eval_summary["pixel_auroc"]),
+        "pixel_aupr": eval_summary["pixel_aupr"],
+        "macro_pixel_aupr": eval_summary.get("macro_pixel_aupr", eval_summary["pixel_aupr"]),
         "aupro": eval_summary["aupro"],
         "macro_aupro": eval_summary.get("macro_aupro", eval_summary["aupro"]),
+        "pixel_f1_max": eval_summary["pixel_f1_max"],
+        "macro_pixel_f1_max": eval_summary.get("macro_pixel_f1_max", eval_summary["pixel_f1_max"]),
         "pixel_f1": eval_summary["pixel_f1"],
         "pixel_iou": eval_summary["pixel_iou"],
         "mean_good_score": eval_summary["mean_good_score"],
