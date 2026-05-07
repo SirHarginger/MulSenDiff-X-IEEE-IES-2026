@@ -103,6 +103,40 @@ python scripts/run_regime_pipeline.py --regime csdd --device-mode cuda --run-nam
 python scripts/run_study_pipeline.py --device-mode cuda --run-name main
 ```
 
+## IRAI Revision Add-ons
+
+### Held-out-category generalization
+
+Run the 3-fold `CCDD` held-out-category study and then compare it against a closed-set `CCDD` evaluation run:
+
+```bash
+python scripts/run_generalization_study.py \
+  --phase full \
+  --closed-set-eval-run runs/ccdd/eval/<closed_set_eval_run> \
+  --device-mode cuda \
+  --run-name revision
+```
+
+This trains on 10 categories per fold, evaluates on the 5 held-out categories with category identity disabled at inference, and writes fold and summary tables under `runs/ccdd/generalization/`.
+
+### Explanation ablation
+
+Build a 20-case explanation audit set from a final `CCDD` evaluation run, then generate:
+
+- `retrieval_only`
+- `generator_only`
+- `full`
+
+```bash
+python scripts/run_explanation_ablation.py \
+  --phase full \
+  --eval-run runs/ccdd/eval/<closed_set_eval_run> \
+  --knowledge-base-root data/retrieval \
+  --run-name revision
+```
+
+This writes the audit manifest, mode outputs, blinded rating templates, and a qualitative triptych under `runs/ccdd/explanation_ablation/`.
+
 ## Retrieval
 
 ```bash
@@ -132,4 +166,3 @@ cp config/gemini.example.json config/gemini.local.json
 * `data/processed/` generated assets
 * `runs/` train and eval outputs
 * do not write generated files into `data/raw/MulSen_AD`
-
