@@ -1,0 +1,17 @@
+{
+  "doc_id": "nut_scratch_reference_v1",
+  "title": "Nut Scratch and Surface Damage Reference",
+  "source_type": "manual",
+  "trust_level": "approved",
+  "category_tags": ["nut"],
+  "sensor_tags": ["cross_inconsistency"],
+  "defect_tags": [
+    "weighted_residual_+_noise",
+    "compact_anomaly",
+    "weak_geometric_support",
+    "cross_modal_inconsistency",
+    "global_descriptor_drift"
+  ],
+  "process_tags": ["surface_check", "tooling_review", "contamination_audit"]
+}
+

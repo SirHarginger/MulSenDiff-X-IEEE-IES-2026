@@ -1,0 +1,17 @@
+{
+  "doc_id": "zipper_crack_field_guide_v1",
+  "title": "Zipper Crack and Separation Field Guide",
+  "source_type": "manual",
+  "trust_level": "approved",
+  "category_tags": ["zipper"],
+  "sensor_tags": ["cross_inconsistency", "geometric_shift"],
+  "defect_tags": [
+    "weighted_residual_+_noise",
+    "compact_anomaly",
+    "moderate_geometric_support",
+    "cross_modal_inconsistency",
+    "global_descriptor_drift"
+  ],
+  "process_tags": ["alignment_check", "tooth_integrity_check", "seam_inspection"]
+}
+

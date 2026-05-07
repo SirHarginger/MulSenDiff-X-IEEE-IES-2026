@@ -1,0 +1,17 @@
+{
+  "doc_id": "spring_pad_break_reference_v1",
+  "title": "Spring Pad Break Reference",
+  "source_type": "manual",
+  "trust_level": "approved",
+  "category_tags": ["spring_pad"],
+  "sensor_tags": ["cross_inconsistency"],
+  "defect_tags": [
+    "weighted_residual_+_noise",
+    "compact_anomaly",
+    "weak_geometric_support",
+    "cross_modal_inconsistency",
+    "global_descriptor_drift"
+  ],
+  "process_tags": ["compression_review", "alignment_check", "fracture_inspection"]
+}
+

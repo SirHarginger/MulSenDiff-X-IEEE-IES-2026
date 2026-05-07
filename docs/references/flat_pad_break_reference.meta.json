@@ -1,0 +1,17 @@
+{
+  "doc_id": "flat_pad_break_reference_v1",
+  "title": "Flat Pad Break Reference",
+  "source_type": "manual",
+  "trust_level": "approved",
+  "category_tags": ["flat_pad"],
+  "sensor_tags": ["cross_inconsistency"],
+  "defect_tags": [
+    "weighted_residual_+_noise",
+    "compact_anomaly",
+    "weak_geometric_support",
+    "cross_modal_inconsistency",
+    "global_descriptor_drift"
+  ],
+  "process_tags": ["edge_integrity_check", "fixture_pressure_review", "handling_audit"]
+}
+
