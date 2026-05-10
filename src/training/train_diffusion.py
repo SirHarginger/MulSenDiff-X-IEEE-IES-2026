@@ -2987,6 +2987,7 @@ def evaluate_checkpoint(
     device: str = "cpu",
     device_mode: str = "",
     disable_category_embedding: bool | None = None,
+    unknown_category_inference: bool | None = None,
     enable_category_modality_gating: bool | None = None,
     score_mode: str = "noise_error",
     anomaly_timestep: int = 200,
@@ -3063,6 +3064,10 @@ def evaluate_checkpoint(
         disable_category_embedding
         if disable_category_embedding is not None
         else bool(checkpoint_config.get("disable_category_embedding", False))
+    )
+    resolved_unknown_category_inference = bool(unknown_category_inference)
+    resolved_disable_category_conditioning = (
+        resolved_disable_category_embedding or resolved_unknown_category_inference
     )
     resolved_enable_category_modality_gating = (
         bool(enable_category_modality_gating)
@@ -3180,7 +3185,17 @@ def evaluate_checkpoint(
         base_channels=int(checkpoint_config.get("base_channels", 32)),
         global_embedding_dim=int(checkpoint_config.get("global_embedding_dim", 128)),
         time_embedding_dim=int(checkpoint_config.get("time_embedding_dim", 128)),
-        num_categories=1 if resolved_disable_category_embedding else max(len(category_vocabulary), 1),
+        num_categories=max(
+            int(
+                checkpoint_config.get(
+                    "num_categories",
+                    1
+                    if bool(checkpoint_config.get("disable_category_embedding", False))
+                    else max(len(category_vocabulary), 1),
+                )
+            ),
+            1,
+        ),
         category_embedding_dim=int(checkpoint_config.get("category_embedding_dim", 32)),
         enable_category_modality_gating=resolved_enable_category_modality_gating,
         attention_heads=int(checkpoint_config.get("attention_heads", 4)),
@@ -3204,11 +3219,14 @@ def evaluate_checkpoint(
         model=model,
         validation_batch=prepare_diffusion_batch(next(iter(loaders["eval_loader"]))),  # type: ignore[arg-type]
         run_backward=False,
-        disable_category_embedding=resolved_disable_category_embedding,
+        disable_category_embedding=resolved_disable_category_conditioning,
     )
     torch_device = runtime.resolved_device
     provenance = _runtime_provenance(resolved_device=torch_device, seed=seed)
     payload = load_checkpoint(checkpoint_path, model=model, map_location=torch_device)
+    if resolved_unknown_category_inference:
+        with torch.no_grad():
+            model.category_embedding.weight.zero_()
     resolved_score_mode = score_mode or str(checkpoint_config.get("score_mode", "noise_error"))
     resolved_multi_timestep = (
         bool(multi_timestep_scoring_enabled)
@@ -3297,7 +3315,7 @@ def evaluate_checkpoint(
                 model,
                 loaders["calibration_loader"],  # type: ignore[arg-type]
                 device=torch_device,
-                disable_category_embedding=resolved_disable_category_embedding,
+                disable_category_embedding=resolved_disable_category_conditioning,
                 score_mode=resolved_score_mode,
                 anomaly_timestep=anomaly_timestep,
                 descriptor_weight=descriptor_weight,
@@ -3328,7 +3346,7 @@ def evaluate_checkpoint(
                 loaders["synthetic_validation_loader"],  # type: ignore[arg-type]
                 device=torch_device,
                 target_size=target_size,
-                disable_category_embedding=resolved_disable_category_embedding,
+                disable_category_embedding=resolved_disable_category_conditioning,
                 score_mode=resolved_score_mode,
                 anomaly_timestep=anomaly_timestep,
                 descriptor_weight=descriptor_weight,
@@ -3362,7 +3380,7 @@ def evaluate_checkpoint(
                 model,
                 loaders["train_reference_loader"],  # type: ignore[arg-type]
                 device=torch_device,
-                disable_category_embedding=resolved_disable_category_embedding,
+                disable_category_embedding=resolved_disable_category_conditioning,
                 score_mode=resolved_score_mode,
                 anomaly_timestep=anomaly_timestep,
                 descriptor_weight=descriptor_weight,
@@ -3400,7 +3418,7 @@ def evaluate_checkpoint(
                 model,
                 loaders["calibration_loader"],  # type: ignore[arg-type]
                 device=torch_device,
-                disable_category_embedding=resolved_disable_category_embedding,
+                disable_category_embedding=resolved_disable_category_conditioning,
                 score_mode=resolved_score_mode,
                 anomaly_timestep=anomaly_timestep,
                 descriptor_weight=descriptor_weight,
@@ -3441,7 +3459,7 @@ def evaluate_checkpoint(
                     model,
                     loaders["calibration_loader"],  # type: ignore[arg-type]
                     device=torch_device,
-                    disable_category_embedding=resolved_disable_category_embedding,
+                    disable_category_embedding=resolved_disable_category_conditioning,
                     score_mode=resolved_score_mode,
                     anomaly_timestep=anomaly_timestep,
                     descriptor_weight=descriptor_weight,
@@ -3462,7 +3480,7 @@ def evaluate_checkpoint(
                     model,
                     loaders["synthetic_validation_loader"],  # type: ignore[arg-type]
                     device=torch_device,
-                    disable_category_embedding=resolved_disable_category_embedding,
+                    disable_category_embedding=resolved_disable_category_conditioning,
                     score_mode=resolved_score_mode,
                     anomaly_timestep=anomaly_timestep,
                     descriptor_weight=descriptor_weight,
@@ -3492,7 +3510,7 @@ def evaluate_checkpoint(
             model,
             loaders["calibration_loader"] if resolved_object_score_strategy != "legacy_raw" else loaders["train_reference_loader"],  # type: ignore[arg-type]
             device=torch_device,
-            disable_category_embedding=resolved_disable_category_embedding,
+            disable_category_embedding=resolved_disable_category_conditioning,
             score_mode=resolved_score_mode,
             anomaly_timestep=anomaly_timestep,
             descriptor_weight=descriptor_weight,
@@ -3543,7 +3561,7 @@ def evaluate_checkpoint(
                 model,
                 loaders["calibration_loader"],  # type: ignore[arg-type]
                 device=torch_device,
-                disable_category_embedding=resolved_disable_category_embedding,
+                disable_category_embedding=resolved_disable_category_conditioning,
                 score_mode=resolved_score_mode,
                 anomaly_timestep=anomaly_timestep,
                 descriptor_weight=descriptor_weight,
@@ -3574,7 +3592,7 @@ def evaluate_checkpoint(
                 loaders["synthetic_validation_loader"],  # type: ignore[arg-type]
                 device=torch_device,
                 target_size=target_size,
-                disable_category_embedding=resolved_disable_category_embedding,
+                disable_category_embedding=resolved_disable_category_conditioning,
                 score_mode=resolved_score_mode,
                 anomaly_timestep=anomaly_timestep,
                 descriptor_weight=descriptor_weight,
@@ -3606,7 +3624,7 @@ def evaluate_checkpoint(
                 model,
                 loaders["train_reference_loader"],  # type: ignore[arg-type]
                 device=torch_device,
-                disable_category_embedding=resolved_disable_category_embedding,
+                disable_category_embedding=resolved_disable_category_conditioning,
                 score_mode=resolved_score_mode,
                 anomaly_timestep=anomaly_timestep,
                 descriptor_weight=descriptor_weight,
@@ -3643,7 +3661,7 @@ def evaluate_checkpoint(
                 model,
                 loaders["train_reference_loader"],  # type: ignore[arg-type]
                 device=torch_device,
-                disable_category_embedding=resolved_disable_category_embedding,
+                disable_category_embedding=resolved_disable_category_conditioning,
                 score_mode=resolved_score_mode,
                 anomaly_timestep=anomaly_timestep,
                 descriptor_weight=descriptor_weight,
@@ -3680,7 +3698,7 @@ def evaluate_checkpoint(
             model,
             loaders["calibration_loader"],  # type: ignore[arg-type]
             device=torch_device,
-            disable_category_embedding=resolved_disable_category_embedding,
+            disable_category_embedding=resolved_disable_category_conditioning,
             score_mode=resolved_score_mode,
             anomaly_timestep=anomaly_timestep,
             descriptor_weight=descriptor_weight,
@@ -3719,7 +3737,7 @@ def evaluate_checkpoint(
                 model,
                 loaders["calibration_loader"],  # type: ignore[arg-type]
                 device=torch_device,
-                disable_category_embedding=resolved_disable_category_embedding,
+                disable_category_embedding=resolved_disable_category_conditioning,
                 score_mode=resolved_score_mode,
                 anomaly_timestep=anomaly_timestep,
                 descriptor_weight=descriptor_weight,
@@ -3740,7 +3758,7 @@ def evaluate_checkpoint(
                 model,
                 loaders["synthetic_validation_loader"],  # type: ignore[arg-type]
                 device=torch_device,
-                disable_category_embedding=resolved_disable_category_embedding,
+                disable_category_embedding=resolved_disable_category_conditioning,
                 score_mode=resolved_score_mode,
                 anomaly_timestep=anomaly_timestep,
                 descriptor_weight=descriptor_weight,
@@ -3770,7 +3788,7 @@ def evaluate_checkpoint(
             model,
             loaders["calibration_loader"] if resolved_object_score_strategy != "legacy_raw" else loaders["train_reference_loader"],  # type: ignore[arg-type]
             device=torch_device,
-            disable_category_embedding=resolved_disable_category_embedding,
+                disable_category_embedding=resolved_disable_category_conditioning,
             score_mode=resolved_score_mode,
             anomaly_timestep=anomaly_timestep,
             descriptor_weight=descriptor_weight,
@@ -3802,7 +3820,7 @@ def evaluate_checkpoint(
         model,
         loaders["eval_loader"],  # type: ignore[arg-type]
         device=torch_device,
-        disable_category_embedding=resolved_disable_category_embedding,
+            disable_category_embedding=resolved_disable_category_conditioning,
         target_size=target_size,
         score_mode=resolved_score_mode,
         anomaly_timestep=anomaly_timestep,
@@ -3863,6 +3881,8 @@ def evaluate_checkpoint(
         "scope": scope,
         "training_mode": "shared_joint" if joint_mode else "single_category",
         "disable_category_embedding": resolved_disable_category_embedding,
+        "unknown_category_inference": resolved_unknown_category_inference,
+        "category_conditioning_disabled_at_inference": resolved_disable_category_conditioning,
         "ablation_mode": "shared_nocat" if resolved_disable_category_embedding and joint_mode else "shared" if joint_mode else "per_category",
         "device": str(torch_device),
         "resolved_device": str(torch_device),
