@@ -120,7 +120,7 @@ def _run_fold_training_and_eval(
         str(checkpoint_path.resolve().relative_to(REPO_ROOT.resolve())),
         "--categories",
         ",".join(held_out_categories),
-        "--disable-category-embedding",
+        "--unknown-category-inference",
         "--run-name",
         eval_label,
     ]
