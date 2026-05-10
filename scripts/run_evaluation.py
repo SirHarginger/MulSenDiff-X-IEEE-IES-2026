@@ -70,6 +70,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Override checkpoint config and disable category identity during evaluation.",
     )
     parser.add_argument(
+        "--unknown-category-inference",
+        action="store_true",
+        help=(
+            "Keep the checkpoint's shared category vocabulary/embedding shape, but zero category identity "
+            "during inference. This is intended for held-out-category shared-model evaluation."
+        ),
+    )
+    parser.add_argument(
         "--enable-category-modality-gating",
         action="store_true",
         help="Override checkpoint config and enable category-conditioned descriptor/support gating.",
@@ -208,6 +216,7 @@ def main() -> None:
         device=args.device or training_cfg.get("device", "cpu"),
         device_mode=args.device_mode or str(training_cfg.get("device_mode", "")),
         disable_category_embedding=True if args.disable_category_embedding else None,
+        unknown_category_inference=True if args.unknown_category_inference else None,
         enable_category_modality_gating=True if args.enable_category_modality_gating else None,
         score_mode=args.score_mode or str(inference_cfg.get("score_mode", "noise_error")),
         anomaly_timestep=args.anomaly_timestep or int(inference_cfg.get("anomaly_timestep", 200)),
