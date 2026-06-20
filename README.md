@@ -1,32 +1,54 @@
 # MulSenDiff-X
 
-Code-only reproducibility release for MulSenDiff-X on MulSen-AD.
+Descriptor-conditioned diffusion for unsupervised multi-sensor industrial anomaly
+detection on MulSen-AD. The code supports RGB, infrared, and point-cloud
+descriptors, with shared and category-specialized detector regimes plus
+sensor-traceable evaluation artifacts.
 
-## Includes
+This is a code-only reproducibility release. It does not include MulSen-AD raw
+data, processed descriptors, trained checkpoints, completed runs, retrieval
+indexes, or local API secrets.
 
-- `app/` Streamlit demo
-- `src/` preprocessing, training, evaluation, retrieval, explanation
-- `scripts/` CLI entry points
-- `config/gemini.example.json` example Gemini config
+## Repository Layout
 
-## Does not include
+- `src/`: preprocessing, training, inference, evaluation, retrieval, explanation
+- `scripts/`: command-line entry points for data, training, evaluation, studies
+- `app/`: optional Streamlit demo
+- `config/`: diffusion and local-service configuration templates
+- `runs/`: generated training/evaluation outputs, ignored by release policy
 
-- MulSen-AD raw data
-- processed data
-- retrieval index
-- completed runs
-- checkpoints
-- local secrets
+## Setup
 
-## Dataset
+Use Python 3.12. CUDA users should verify `nvidia-smi` and
+`torch.cuda.is_available()` before launching long runs.
 
-Place MulSen-AD here:
+```bash
+python3.12 -m venv .venv-cuda
+source .venv-cuda/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
+python -m pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu118
+```
+
+CPU-only install:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
+python -m pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cpu
+```
+
+## Data
+
+Place MulSen-AD at:
 
 ```text
 data/raw/MulSen_AD
 ```
 
-Download data:
+Example download layout:
 
 ```bash
 mkdir -p data/raw
@@ -34,135 +56,143 @@ wget -O data/raw/MulSen_AD.zip "https://huggingface.co/datasets/orgjy314159/MulS
 unzip data/raw/MulSen_AD.zip -d data/raw
 ```
 
-## Setup
-
-### CPU
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cpu
-```
-
-### CUDA 11.8
-
-```bash
-python3 -m venv .venv-cuda
-source .venv-cuda/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu118
-```
-
-## Regimes
-
-* `ccdd` shared detector with category conditioning
-* `cadd` shared detector without category conditioning
-* `csdd` category-specific detector
-
-## Split policy
-
-* train on `train_core_good`
-* calibrate/select on `calibration_good + synthetic_validation`
-* evaluate on `official_test`
-
-Do not use the official test split for checkpoint selection.
-
-## Run
-
-### Preprocess
+Build processed descriptors:
 
 ```bash
 python scripts/run_data_pipeline.py --processed-root data/processed
 ```
 
-### Train
+## Regimes
+
+- `ccdd`: shared descriptor diffusion with category conditioning
+- `cadd`: shared descriptor diffusion without category conditioning
+- `csdd`: category-specialized descriptor diffusion
+
+Split policy: train on `train_core_good`, calibrate/select on
+`calibration_good + synthetic_validation`, and report on `official_test`.
+
+## Core Runs
+
+Train/evaluate one regime:
 
 ```bash
-python scripts/run_training.py --categories all --device-mode cuda --run-name main
-python scripts/run_training.py --categories all --disable-category-embedding --device-mode cuda --run-name main
-python scripts/run_training.py --category capsule --device-mode cuda --run-name main
+python scripts/run_regime_pipeline.py --regime ccdd --skip-preprocess --processed-root data/processed --device-mode cuda --run-name main --max-visualizations 0
+python scripts/run_regime_pipeline.py --regime cadd --skip-preprocess --processed-root data/processed --device-mode cuda --run-name main --max-visualizations 0
+python scripts/run_regime_pipeline.py --regime csdd --skip-preprocess --processed-root data/processed --device-mode cuda --run-name main --max-visualizations 0
 ```
 
-### Evaluate
+Run the full three-regime study:
 
 ```bash
-python scripts/run_evaluation.py --checkpoint runs/ccdd/train/<train_run_dir>/checkpoints/best.pt --categories all --device-mode cuda --run-name main
-python scripts/run_evaluation.py --checkpoint runs/cadd/train/<train_run_dir>/checkpoints/best.pt --categories all --disable-category-embedding --device-mode cuda --run-name main
-python scripts/run_evaluation.py --checkpoint runs/csdd/train/<train_run_dir>/checkpoints/best.pt --category capsule --device-mode cuda --run-name main
+python scripts/run_study_pipeline.py --regimes ccdd,cadd,csdd --skip-preprocess --processed-root data/processed --device-mode cuda --seed 17 --run-name camera_ready_seed17 --max-visualizations 0
+python scripts/run_study_pipeline.py --regimes ccdd,cadd,csdd --skip-preprocess --processed-root data/processed --device-mode cuda --seed 37 --run-name camera_ready_seed37 --max-visualizations 0
 ```
 
-### Pipelines
+Training is storage-light by default: each run writes `checkpoints/best.pt` for
+evaluation and `checkpoints/last.pt` for resuming. It does not keep every
+`epoch_XXX.pt` checkpoint unless `--save-epoch-checkpoints` is passed.
+
+Resume a run:
 
 ```bash
-python scripts/run_regime_pipeline.py --regime ccdd --device-mode cuda --run-name main
-python scripts/run_regime_pipeline.py --regime cadd --device-mode cuda --run-name main
-python scripts/run_regime_pipeline.py --regime csdd --device-mode cuda --run-name main
-python scripts/run_study_pipeline.py --device-mode cuda --run-name main
+python scripts/run_regime_pipeline.py --regime csdd --categories cube --skip-preprocess --processed-root data/processed --device-mode cuda --seed 17 --run-name camera_ready_seed17_resume --max-visualizations 0 --resume-checkpoint runs/csdd/train/<partial_run>/checkpoints/last.pt
 ```
 
-## IRAI Revision Add-ons
+If the interrupted run predates `last.pt`, resume from `best.pt` or the newest
+available `epoch_XXX.pt`.
 
-### Held-out-category generalization
+## Evaluation
 
-Run the 3-fold `CCDD` held-out-category study and then compare it against a closed-set `CCDD` evaluation run:
+Evaluate a saved checkpoint directly:
 
 ```bash
-python scripts/run_generalization_study.py \
-  --phase full \
-  --closed-set-eval-run runs/ccdd/eval/<closed_set_eval_run> \
-  --device-mode cuda \
-  --run-name revision
+python scripts/run_evaluation.py --checkpoint runs/ccdd/train/<run>/checkpoints/best.pt --categories all --processed-root data/processed --device-mode cuda --run-name eval
+python scripts/run_evaluation.py --checkpoint runs/cadd/train/<run>/checkpoints/best.pt --categories all --disable-category-embedding --processed-root data/processed --device-mode cuda --run-name eval
+python scripts/run_evaluation.py --checkpoint runs/csdd/train/<run>/checkpoints/best.pt --category capsule --processed-root data/processed --device-mode cuda --run-name eval
 ```
 
-This trains on 10 categories per fold, evaluates on the 5 held-out categories with category identity disabled at inference, and writes fold and summary tables under `runs/ccdd/generalization/`.
+Required eval artifacts are `summary.json`, `metrics/evaluation.json`, and
+`metrics/per_category.json`.
 
-### Explanation ablation
+## Camera-Ready Aggregation
 
-Build a 20-case explanation audit set from a final `CCDD` evaluation run, then generate:
-
-- `retrieval_only`
-- `generator_only`
-- `full`
+Create a manifest with explicit seed-to-run paths, then aggregate:
 
 ```bash
-python scripts/run_explanation_ablation.py \
-  --phase full \
-  --eval-run runs/ccdd/eval/<closed_set_eval_run> \
-  --knowledge-base-root data/retrieval \
-  --run-name revision
+python scripts/summarize_camera_ready.py --manifest runs/camera_ready_manifest.json --output-root runs/camera_ready_summary --copy-manifest
 ```
 
-This writes the audit manifest, mode outputs, blinded rating templates, and a qualitative triptych under `runs/ccdd/explanation_ablation/`.
+Outputs include:
 
-## Retrieval
+`main_multiseed_summary.csv`, `tables/main_multiseed_table.tex`,
+`ccdd_cadd_paired_delta_summary.csv`, `tables/mechanism_ablation_table.tex`,
+split figure assets, and `source_runs.csv`.
+
+## Mechanism Ablations
+
+Thermal/internal-defect rescue gate ablation. Run CCDD gate-on evaluation for
+the affected categories only, once per seed/checkpoint:
+
+```bash
+python scripts/run_evaluation.py --checkpoint <ccdd_seed_best.pt> --categories capsule,solar_panel --processed-root data/processed --device-mode cuda --seed <seed> --run-name gate_on_seed<seed> --enable-internal-defect-gate --max-visualizations 0
+```
+
+Reference-statistic substitution ablation. Copy processed descriptors, rebuild
+only `screw,zipper` with the archetype-A reference policy disabled, then train
+CCDD on the copied processed root:
+
+```bash
+cp -a data/processed data/processed_no_refsub
+python scripts/run_data_pipeline.py --processed-root data/processed_no_refsub --categories screw,zipper --overwrite --skip-manifests --disable-archetype-a-reference-policy
+grep -E 'screw|zipper' data/processed_no_refsub/reports/descriptor_policy_audit.csv
+python scripts/run_regime_pipeline.py --regime ccdd --skip-preprocess --processed-root data/processed_no_refsub --device-mode cuda --seed <seed> --run-name refsub_off_seed<seed> --max-visualizations 0
+```
+
+Add ablation eval paths to `runs/camera_ready_manifest.json` under
+`ablations.gate_on.eval_runs` or `ablations.refsub_off.eval_runs`, then rerun
+`scripts/summarize_camera_ready.py`.
+
+## Additional Studies
+
+Held-out category generalization:
+
+```bash
+python scripts/run_generalization_study.py --phase full --closed-set-eval-run runs/ccdd/eval/<closed_set_eval_run> --device-mode cuda --run-name revision
+```
+
+Explanation audit:
+
+```bash
+python scripts/run_explanation_ablation.py --phase full --eval-run runs/ccdd/eval/<closed_set_eval_run> --knowledge-base-root data/retrieval --run-name revision
+```
+
+The explanation workflow writes audit manifests, blinded rating templates, mode
+outputs, and qualitative comparison panels under `runs/ccdd/explanation_ablation/`.
+
+## Retrieval And App
+
+Build a local trusted corpus index:
 
 ```bash
 mkdir -p docs/references
 python scripts/build_trusted_corpus.py --source-root docs/references --output data/retrieval/index.jsonl
 ```
 
-## App
+Run the demo:
 
 ```bash
 python scripts/run_app.py --host 127.0.0.1 --port 8501 --headless
 ```
 
-Open `http://127.0.0.1:8501`
+Open `http://127.0.0.1:8501`. The app needs local data/checkpoint assets and
+is not expected to run from a fresh clone alone.
 
-The app needs local runtime assets and is not expected to run from a fresh clone alone.
+## Local Secrets
 
-## Gemini
+For Gemini-backed explanation experiments:
 
 ```bash
 cp config/gemini.example.json config/gemini.local.json
 ```
 
-## Rules
-
-* `data/raw/` untouched source data
-* `data/processed/` generated assets
-* `runs/` train and eval outputs
-* do not write generated files into `data/raw/MulSen_AD`
+Keep `config/gemini.local.json` and other secrets out of version control.
