@@ -158,6 +158,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--selection-metric", default="")
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--log-every-n-steps", type=int, default=0)
+    parser.add_argument(
+        "--resume-checkpoint",
+        default="",
+        help="Resume model and optimizer state from a best.pt, last.pt, or epoch_XXX.pt checkpoint.",
+    )
+    parser.add_argument(
+        "--save-epoch-checkpoints",
+        action="store_true",
+        help="Keep every epoch_XXX.pt checkpoint. Default keeps only best.pt and rolling last.pt.",
+    )
     parser.add_argument("--no-jsonl", action="store_true")
     return parser
 
@@ -296,6 +306,8 @@ def main() -> None:
         seed=args.seed if args.seed is not None else int(training_cfg.get("seed", 7)),
         log_every_n_steps=args.log_every_n_steps or int(training_cfg.get("log_every_n_steps", 10)),
         log_to_jsonl=not args.no_jsonl if args.no_jsonl else bool(training_cfg.get("log_to_jsonl", True)),
+        resume_checkpoint=args.resume_checkpoint or None,
+        save_epoch_checkpoints=args.save_epoch_checkpoints,
     )
     result = train_model(**_filter_supported_kwargs(train_model, requested_kwargs))
 
