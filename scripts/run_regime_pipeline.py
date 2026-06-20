@@ -128,8 +128,11 @@ def _build_train_command(
         command.extend(["--max-train-batches", str(args.max_train_batches)])
     if args.max_eval_batches > 0:
         command.extend(["--max-eval-batches", str(args.max_eval_batches)])
-    if args.max_visualizations > 0:
-        command.extend(["--max-visualizations", str(args.max_visualizations)])
+    command.extend(["--max-visualizations", str(args.max_visualizations)])
+    if args.resume_checkpoint:
+        command.extend(["--resume-checkpoint", args.resume_checkpoint])
+    if args.save_epoch_checkpoints:
+        command.append("--save-epoch-checkpoints")
     if regime == "cadd":
         command.append("--disable-category-embedding")
     if regime in {"ccdd", "cadd"}:
@@ -161,8 +164,7 @@ def _build_eval_command(
     ]
     if args.max_eval_batches > 0:
         command.extend(["--max-eval-batches", str(args.max_eval_batches)])
-    if args.max_visualizations > 0:
-        command.extend(["--max-visualizations", str(args.max_visualizations)])
+    command.extend(["--max-visualizations", str(args.max_visualizations)])
     if regime == "cadd":
         command.append("--disable-category-embedding")
     if regime in {"ccdd", "cadd"}:
@@ -208,6 +210,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-eval-batches", type=int, default=0)
     parser.add_argument("--max-visualizations", type=int, default=0)
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument(
+        "--resume-checkpoint",
+        default="",
+        help="Resume this regime/category from a checkpoint. For CSDD, use with a single --categories value.",
+    )
+    parser.add_argument(
+        "--save-epoch-checkpoints",
+        action="store_true",
+        help="Keep every epoch_XXX.pt checkpoint. Default keeps only best.pt and rolling last.pt.",
+    )
     parser.add_argument("--export-model", action="store_true")
     parser.add_argument("--force-model-export", action="store_true")
     return parser
@@ -225,6 +237,8 @@ def main() -> None:
         selected_categories = list(ALL_CATEGORIES)
     else:
         selected_categories = requested_categories or list(ALL_CATEGORIES)
+    if args.resume_checkpoint and args.regime == "csdd" and len(selected_categories) != 1:
+        raise SystemExit("--resume-checkpoint for CSDD requires one category, for example --categories cube")
     regime_paper = REGIME_PAPERS[args.regime]
 
     if args.regime in {"ccdd", "cadd"}:
