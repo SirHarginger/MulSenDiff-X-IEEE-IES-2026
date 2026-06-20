@@ -82,6 +82,7 @@ def run_descriptor_pipeline(
     skip_existing: bool = True,
     continue_on_error: bool = True,
     target_size: tuple[int, int] = (256, 256),
+    disable_archetype_a_reference_policy: bool = False,
     log_progress: Callable[[str], None] | None = None,
 ) -> Dict[str, object]:
     data_root = Path(data_root)
@@ -110,6 +111,7 @@ def run_descriptor_pipeline(
         processed_root=resolved_processed_root,
         categories=selected_categories,
         target_size=target_size,
+        disable_archetype_a_reference_policy=disable_archetype_a_reference_policy,
         log_progress=log_progress,
     )
     _log(
@@ -202,6 +204,7 @@ def run_descriptor_pipeline(
             "warning_count": validation_summary["warning_count"],
         },
         "descriptor_policy_audit_json": str(descriptor_policy_json),
+        "disable_archetype_a_reference_policy": bool(disable_archetype_a_reference_policy),
     }
     pipeline_summary_path = resolved_processed_root / "reports" / "descriptor_pipeline_summary.json"
     pipeline_summary_path.write_text(json.dumps(pipeline_summary, indent=2, sort_keys=True), encoding="utf-8")
