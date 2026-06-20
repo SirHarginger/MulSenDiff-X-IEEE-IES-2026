@@ -105,8 +105,7 @@ def _run_fold_training_and_eval(
         train_command.extend(["--max-train-batches", str(args.max_train_batches)])
     if args.max_eval_batches > 0:
         train_command.extend(["--max-eval-batches", str(args.max_eval_batches)])
-    if args.max_visualizations > 0:
-        train_command.extend(["--max-visualizations", str(args.max_visualizations)])
+    train_command.extend(["--max-visualizations", str(args.max_visualizations)])
     _run_command(train_command)
     train_run_dir = _detect_new_run_dir(train_output_root, before_train)
     checkpoint_path = train_run_dir / "checkpoints" / "best.pt"
@@ -126,8 +125,7 @@ def _run_fold_training_and_eval(
     ]
     if args.max_eval_batches > 0:
         eval_command.extend(["--max-eval-batches", str(args.max_eval_batches)])
-    if args.max_visualizations > 0:
-        eval_command.extend(["--max-visualizations", str(args.max_visualizations)])
+    eval_command.extend(["--max-visualizations", str(args.max_visualizations)])
     _run_command(eval_command)
     eval_run_dir = _detect_new_run_dir(eval_output_root, before_eval)
 
