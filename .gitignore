@@ -63,7 +63,8 @@ celerybeat.pid
 # Environments
 .env
 .envrc
-.venv
+.venv/
+.venv*/
 .venv-p1000
 env/
 venv/
@@ -81,6 +82,9 @@ dmypy.json
 .pytype/
 cython_debug/
 .idea/
+.vscode/
+.codex
+.codex/
 .abstra/
 .ruff_cache/
 .pypirc
@@ -95,8 +99,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 yuupdateu
-data/processed/
-data/raw/
-data/retrieval/
-data/splits/ 
-config/gemini.local.json/
+
+# Local data, generated descriptors, and private configs
+data/
+config/*.local.json
