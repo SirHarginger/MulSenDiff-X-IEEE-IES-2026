@@ -45,6 +45,11 @@ def main() -> None:
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--fail-fast", action="store_true")
     parser.add_argument("--skip-manifests", action="store_true")
+    parser.add_argument(
+        "--disable-archetype-a-reference-policy",
+        action="store_true",
+        help="Ablation: force Archetype-A categories such as screw and zipper to use default geometry descriptors.",
+    )
     parser.add_argument("--quiet", action="store_true", help="Disable progress logging.")
     args = parser.parse_args()
 
@@ -73,6 +78,7 @@ def main() -> None:
         limit=args.limit,
         skip_existing=not args.overwrite,
         continue_on_error=not args.fail_fast,
+        disable_archetype_a_reference_policy=args.disable_archetype_a_reference_policy,
         log_progress=logger,
     )
     _log(
