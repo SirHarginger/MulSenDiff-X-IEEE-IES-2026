@@ -121,8 +121,7 @@ def main() -> None:
             command.extend(["--max-train-batches", str(args.max_train_batches)])
         if args.max_eval_batches > 0:
             command.extend(["--max-eval-batches", str(args.max_eval_batches)])
-        if args.max_visualizations > 0:
-            command.extend(["--max-visualizations", str(args.max_visualizations)])
+        command.extend(["--max-visualizations", str(args.max_visualizations)])
         if args.seed is not None:
             command.extend(["--seed", str(args.seed)])
         if args.export_models:
