@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import platform
 import random
+import shutil
 import subprocess
 import sys
 from contextlib import nullcontext
@@ -169,6 +170,37 @@ def _run_slug_for_categories(selected_categories: Sequence[str]) -> str | None:
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def _resolve_repo_path(path: Path | str | None) -> Path | None:
+    if path is None or not str(path).strip():
+        return None
+    resolved = Path(path).expanduser()
+    if not resolved.is_absolute():
+        resolved = _repo_root() / resolved
+    return resolved
+
+
+def _checkpoint_selected_metric(
+    metrics: Mapping[str, Any],
+    *,
+    selection_metric: str,
+    joint_mode: bool,
+) -> float | None:
+    candidate_keys = [
+        "best_selected_metric",
+        "selected_metric",
+        selection_metric,
+        "macro_image_auroc" if joint_mode else "image_auroc",
+        "image_auroc",
+    ]
+    for key in candidate_keys:
+        value = metrics.get(key)
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            continue
+    return None
 
 
 def _git_commit_hash() -> str:
@@ -2245,6 +2277,8 @@ def train_model(
     seed: int = 7,
     log_every_n_steps: int = 10,
     log_to_jsonl: bool = True,
+    resume_checkpoint: Path | str | None = None,
+    save_epoch_checkpoints: bool = False,
 ) -> Dict[str, Any]:
     selected_categories = _normalize_selected_categories(category=category, categories=categories)
     scope = resolve_scope(selected_categories, category=category)
@@ -2264,6 +2298,9 @@ def train_model(
         else Path(output_root)
     )
     resolved_processed_root = resolve_processed_root(data_root=data_root, processed_root=processed_root)
+    resolved_resume_checkpoint = _resolve_repo_path(resume_checkpoint)
+    if resolved_resume_checkpoint is not None and not resolved_resume_checkpoint.exists():
+        raise FileNotFoundError(f"resume checkpoint not found: {resolved_resume_checkpoint}")
     _set_global_seed(seed)
     run_paths = create_run_dir(
         output_root=resolved_output_root,
@@ -2349,6 +2386,39 @@ def train_model(
     torch_device = runtime.resolved_device
     provenance = _runtime_provenance(resolved_device=torch_device, seed=seed)
     optimizer = AdamW(model.parameters(), lr=learning_rate)
+    resume_payload: Dict[str, Any] | None = None
+    resume_metrics: Dict[str, Any] = {}
+    resume_epoch = 0
+    resume_initial_best_metric: float | None = None
+    resume_source_best_checkpoint: Path | None = None
+    if resolved_resume_checkpoint is not None:
+        resume_payload = load_checkpoint(
+            resolved_resume_checkpoint,
+            model=model,
+            optimizer=optimizer,
+            map_location=torch_device,
+        )
+        resume_epoch = int(resume_payload.get("epoch", 0) or 0)
+        resume_metrics = dict(resume_payload.get("metrics", {}) or {})
+        sibling_best = resolved_resume_checkpoint.parent / "best.pt"
+        resume_source_best_checkpoint = sibling_best if sibling_best.exists() else resolved_resume_checkpoint
+        if resume_source_best_checkpoint.exists():
+            best_payload = read_checkpoint_payload(resume_source_best_checkpoint, map_location=torch.device("cpu"))
+            resume_initial_best_metric = _checkpoint_selected_metric(
+                dict(best_payload.get("metrics", {}) or {}),
+                selection_metric=selection_metric,
+                joint_mode=joint_mode,
+            )
+        if resume_initial_best_metric is None:
+            resume_initial_best_metric = _checkpoint_selected_metric(
+                resume_metrics,
+                selection_metric=selection_metric,
+                joint_mode=joint_mode,
+            )
+        print(
+            f"[train] resume checkpoint={resolved_resume_checkpoint} "
+            f"epoch={resume_epoch} target_epochs={epochs}"
+        )
     manifests = loaders["manifests"]  # type: ignore[assignment]
     rgb_stats_path = ""
     rgb_stats_by_category_path = ""
@@ -2636,13 +2706,44 @@ def train_model(
         "edge_reconstruction_weight": edge_reconstruction_weight,
         "log_every_n_steps": log_every_n_steps,
         "log_to_jsonl": log_to_jsonl,
+        "resume_checkpoint": str(resolved_resume_checkpoint) if resolved_resume_checkpoint else "",
+        "resume_epoch": resume_epoch,
+        "save_epoch_checkpoints": save_epoch_checkpoints,
         **provenance,
     }
     write_json(run_paths.root / "config.json", config_payload)
 
     history: List[Dict[str, Any]] = []
-    best_auroc = float("-inf")
+    best_auroc = float(resume_initial_best_metric) if resume_initial_best_metric is not None else float("-inf")
     best_checkpoint_path: Path | None = None
+    last_checkpoint_path: Path | None = None
+    start_epoch = resume_epoch + 1 if resume_payload is not None else 1
+    if resume_payload is not None:
+        last_checkpoint_path = save_checkpoint(
+            run_paths.checkpoints / "last.pt",
+            model=model,
+            optimizer=optimizer,
+            epoch=resume_epoch,
+            metrics=resume_metrics,
+            config=config_payload,
+        )
+        if resume_source_best_checkpoint is not None and resume_source_best_checkpoint.exists():
+            best_checkpoint_path = run_paths.checkpoints / "best.pt"
+            shutil.copy2(resume_source_best_checkpoint, best_checkpoint_path)
+        else:
+            best_checkpoint_path = save_checkpoint(
+                run_paths.checkpoints / "best.pt",
+                model=model,
+                optimizer=optimizer,
+                epoch=resume_epoch,
+                metrics=resume_metrics,
+                config=config_payload,
+            )
+        if start_epoch > epochs:
+            print(
+                f"[train] resume checkpoint is already at epoch {resume_epoch}; "
+                f"target epochs={epochs}, no additional epochs to run"
+            )
     step_log_path = run_paths.logs / "train_steps.jsonl"
     event_log_path = run_paths.logs / "events.jsonl"
 
@@ -2675,12 +2776,15 @@ def train_model(
             "training_protocol": "train_good_only",
             "evaluation_protocol": "test_good_plus_anomaly",
             "seed": seed,
+            "resume_checkpoint": str(resolved_resume_checkpoint) if resolved_resume_checkpoint else "",
+            "resume_epoch": resume_epoch,
+            "start_epoch": start_epoch,
             "git_commit": provenance["git_commit"],
             "git_dirty": provenance["git_dirty"],
         },
     )
 
-    for epoch in range(1, epochs + 1):
+    for epoch in range(start_epoch, epochs + 1):
         score_weights = resolve_score_weights(
             total_epochs=epochs,
             epoch=epoch,
@@ -2871,14 +2975,26 @@ def train_model(
             _per_category_metric_rows(eval_summary.get("per_category", {})),
         )
 
-        save_checkpoint(
-            run_paths.checkpoints / f"epoch_{epoch:03d}.pt",
+        if save_epoch_checkpoints:
+            save_checkpoint(
+                run_paths.checkpoints / f"epoch_{epoch:03d}.pt",
+                model=model,
+                optimizer=optimizer,
+                epoch=epoch,
+                metrics=epoch_summary,
+                config=config_payload,
+            )
+        last_checkpoint_path = save_checkpoint(
+            run_paths.checkpoints / "last.pt",
             model=model,
             optimizer=optimizer,
             epoch=epoch,
-            metrics=epoch_summary,
-                config=config_payload,
-            )
+            metrics={
+                **epoch_summary,
+                "best_selected_metric": round(max(best_auroc, selected_metric_value), 6),
+            },
+            config=config_payload,
+        )
         if selected_metric_value >= best_auroc:
             best_auroc = float(selected_metric_value)
             best_checkpoint_path = save_checkpoint(
@@ -2958,6 +3074,11 @@ def train_model(
         "best_selected_metric": round(best_auroc, 6) if best_auroc != float("-inf") else 0.0,
         "selection_metric": selection_metric,
         "best_checkpoint": str(best_checkpoint_path) if best_checkpoint_path else "",
+        "last_checkpoint": str(last_checkpoint_path) if last_checkpoint_path else "",
+        "resume_checkpoint": str(resolved_resume_checkpoint) if resolved_resume_checkpoint else "",
+        "resume_epoch": resume_epoch,
+        "start_epoch": start_epoch,
+        "save_epoch_checkpoints": save_epoch_checkpoints,
         "history_rows": len(history),
         "global_descriptor_calibration_path": str(global_descriptor_calibration_path),
         "localization_calibration_path": str(localization_calibration_path),
