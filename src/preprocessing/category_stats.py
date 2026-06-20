@@ -23,6 +23,7 @@ def build_category_stats(
     processed_root: Path | str | None = None,
     categories: Sequence[str] | None = None,
     target_size: tuple[int, int] = (256, 256),
+    disable_archetype_a_reference_policy: bool = False,
     log_progress: Callable[[str], None] | None = None,
 ) -> Dict[str, object]:
     raw_root = Path(raw_root)
@@ -64,7 +65,8 @@ def build_category_stats(
         archetype_a_normal_reference_samples: list[np.ndarray] = []
         feature_maps_by_path: dict[str, Dict[str, np.ndarray]] = {}
         density_max = 1.0
-        descriptor_policy = "residual_reference" if is_archetype_a_replace(category) else "default_geometry"
+        use_archetype_a_reference = is_archetype_a_replace(category) and not disable_archetype_a_reference_policy
+        descriptor_policy = "residual_reference" if use_archetype_a_reference else "default_geometry"
 
         _log(log_progress, f"category_stats:{category}: point-cloud feature pass 1/2")
         for index, path in enumerate(pointcloud_paths, start=1):
@@ -81,7 +83,7 @@ def build_category_stats(
             curvature_maps.append(feature_maps["curvature"])
             normal_maps.append(feature_maps["normal_map"])
             density_max = max(density_max, float(feature_maps["density"].max()))
-            if is_archetype_a_replace(category):
+            if use_archetype_a_reference:
                 archetype_a_depth_reference_samples.append(feature_maps["depth"])
                 archetype_a_normal_reference_samples.append(feature_maps["normal_map"])
 
@@ -99,7 +101,7 @@ def build_category_stats(
 
         depth_reference_std = None
         normal_reference_std = None
-        if is_archetype_a_replace(category) and archetype_a_depth_reference_samples and archetype_a_normal_reference_samples:
+        if use_archetype_a_reference and archetype_a_depth_reference_samples and archetype_a_normal_reference_samples:
             depth_reference_std = np.stack(archetype_a_depth_reference_samples, axis=0).std(axis=0).astype(np.float32)
             normal_reference_std = np.stack(archetype_a_normal_reference_samples, axis=0).std(axis=0).astype(np.float32)
 
